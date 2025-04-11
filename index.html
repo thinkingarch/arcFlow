@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en" class=""> <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>arcFlow - Construction Scheduling</title>
@@ -8,272 +7,238 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Apply dark mode preference on initial load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+    </script>
     <style>
         /* Custom styles for the app */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Tailwind gray-50 */
+            /* Light mode default */
+            @apply bg-gray-50 text-gray-900;
+            /* Dark mode override */
+            @apply dark:bg-gray-900 dark:text-gray-200;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         /* Style for the file upload area */
         .drop-zone {
-            border: 2px dashed #cbd5e1; /* Tailwind gray-300 */
+            @apply border-2 border-dashed border-gray-300 dark:border-gray-600 p-10 text-center rounded-lg cursor-pointer;
             transition: all 0.3s ease;
         }
+        .drop-zone:hover {
+             @apply border-blue-500 bg-blue-50 dark:bg-gray-800 dark:border-blue-400;
+        }
         .drop-zone.dragover {
-            border-color: #3b82f6; /* Tailwind blue-500 */
-            background-color: #eff6ff; /* Tailwind blue-50 */
+            @apply border-blue-500 bg-blue-50 dark:bg-gray-800 dark:border-blue-400;
         }
         /* Styles for the Gantt chart */
         .gantt-container {
-            position: relative;
-            overflow-x: auto;
-            padding: 1rem 0;
-            border: 1px solid #e5e7eb; /* Tailwind gray-200 */
-            border-radius: 0.5rem; /* rounded-lg */
-            background-color: white;
+            @apply relative overflow-x-auto py-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800;
         }
         /* Container for the task bar (base + delay + buffer) */
         .gantt-task-bar-container {
-            position: absolute;
-            height: 2rem; /* h-8 */
-            display: flex; /* Use flexbox for segments */
-            border-radius: 0.375rem; /* rounded-md */
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
-            cursor: pointer;
-            overflow: hidden; /* Clip child elements */
-            border: 1px solid transparent;
+            @apply absolute h-8 flex rounded-md shadow-sm cursor-pointer overflow-hidden border border-transparent;
              transition: transform 0.2s ease, border 0.2s ease;
         }
          .gantt-task-bar-container:hover {
-             transform: translateY(-1px);
-             border-color: #9ca3af; /* gray-400 */
+             @apply transform -translate-y-px border-gray-400 dark:border-gray-500;
          }
 
         /* Base duration part of the bar */
         .gantt-task-bar-base {
-            height: 100%;
-            background-color: #60a5fa; /* Default: Tailwind blue-400 */
-            color: white;
-            font-size: 0.75rem; /* text-xs */
-            padding: 0 0.5rem; /* px-2 */
-            display: flex;
-            align-items: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            @apply h-full bg-blue-400 dark:bg-blue-500 text-white text-xs px-2 flex items-center whitespace-nowrap overflow-hidden text-ellipsis;
             transition: background-color 0.2s ease;
-            /* border-right: 1px solid rgba(255, 255, 255, 0.2); Separator handled dynamically */
+            /* border-right handled dynamically */
         }
         /* Delay part of the bar */
         .gantt-task-bar-delay {
-             height: 100%;
-             background-color: #fb923c; /* Tailwind orange-400 */
+            @apply h-full bg-orange-400 dark:bg-orange-500 text-xs flex items-center justify-center text-orange-900 dark:text-orange-100 overflow-hidden;
              transition: background-color 0.2s ease;
-             font-size: 0.65rem;
-             display: flex;
-             align-items: center;
-             justify-content: center;
-             color: #7c2d12; /* dark orange text */
-             overflow: hidden;
              border-left: 1px solid rgba(255, 255, 255, 0.3);
              border-right: 1px solid rgba(255, 255, 255, 0.3);
         }
         /* Buffer part of the bar */
         .gantt-task-bar-buffer {
-            height: 100%;
-            background-color: #93c5fd; /* Lighter blue: Tailwind blue-300 */
+            @apply h-full bg-blue-300 dark:bg-blue-400 text-xs flex items-center justify-center text-blue-900 dark:text-blue-100 overflow-hidden;
             transition: background-color 0.2s ease;
-            font-size: 0.65rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #1e40af; /* dark blue text */
-            overflow: hidden;
-             /* border-left: 1px solid rgba(255, 255, 255, 0.2); Handled dynamically */
+             /* border-left handled dynamically */
         }
 
         /* --- Styling overrides based on status/critical path --- */
+        .gantt-task-bar-container.critical-path .gantt-task-bar-base { @apply bg-yellow-400 dark:bg-yellow-500 text-yellow-900 dark:text-yellow-900; }
+        .gantt-task-bar-container.critical-path .gantt-task-bar-delay { @apply bg-amber-400 dark:bg-amber-500 text-amber-900 dark:text-amber-900; }
+        .gantt-task-bar-container.critical-path .gantt-task-bar-buffer { @apply bg-yellow-300 dark:bg-yellow-400 text-yellow-900 dark:text-yellow-800; }
 
-        /* Critical path tasks */
-        .gantt-task-bar-container.critical-path .gantt-task-bar-base {
-            background-color: #facc15; /* yellow-400 */
-            color: #422006;
-        }
-         .gantt-task-bar-container.critical-path .gantt-task-bar-delay {
-             background-color: #fbbf24; /* amber-400 (slightly different from orange) */
-             color: #7c2d12;
-         }
-         .gantt-task-bar-container.critical-path .gantt-task-bar-buffer {
-            background-color: #fde047; /* yellow-300 */
-            color: #78350f;
-        }
-
-        /* Completed tasks */
-         .gantt-task-bar-container.status-completed { opacity: 0.7; }
-        .gantt-task-bar-container.status-completed .gantt-task-bar-base {
-            background-color: #34d399; /* emerald-400 */
-        }
-         .gantt-task-bar-container.status-completed .gantt-task-bar-delay {
-             background-color: #6ee7b7; /* emerald-300 */
-             color: #065f46;
-         }
-         .gantt-task-bar-container.status-completed .gantt-task-bar-buffer {
-            background-color: #a7f3d0; /* emerald-200 */
-             color: #065f46;
-        }
-         .gantt-task-bar-container.status-completed:hover { opacity: 0.8; }
-
+        .gantt-task-bar-container.status-completed { @apply opacity-70; }
+        .gantt-task-bar-container.status-completed .gantt-task-bar-base { @apply bg-emerald-400 dark:bg-emerald-500; }
+        .gantt-task-bar-container.status-completed .gantt-task-bar-delay { @apply bg-emerald-300 dark:bg-emerald-400 text-emerald-900 dark:text-emerald-900; }
+        .gantt-task-bar-container.status-completed .gantt-task-bar-buffer { @apply bg-emerald-200 dark:bg-emerald-300 text-emerald-900 dark:text-emerald-800; }
+        .gantt-task-bar-container.status-completed:hover { @apply opacity-80; }
         /* --- End Status Overrides --- */
 
-        .gantt-dependency-line {
-            position: absolute;
-            border-color: #ef4444; /* Tailwind red-500 */
-            border-width: 0 0 1px 1px;
-            z-index: 0;
-        }
-        .gantt-grid-line {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background-color: #e5e7eb; /* Tailwind gray-200 */
-            z-index: 0;
-        }
-        .gantt-header-day {
-             min-width: 40px;
-             text-align: center;
-             font-size: 0.75rem; /* text-xs */
-             color: #6b7280; /* text-gray-500 */
-             padding-bottom: 0.5rem; /* pb-2 */
-             border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
-        }
+        .gantt-dependency-line { @apply absolute border-red-500 dark:border-red-400; border-width: 0 0 1px 1px; z-index: 0; }
+        .gantt-grid-line { @apply absolute top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700; z-index: 0; }
+        .gantt-header-day { @apply absolute min-w-[40px] text-center text-xs text-gray-500 dark:text-gray-400 pb-2 border-b border-gray-200 dark:border-gray-700; }
+
         /* Modal styles */
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 0.5rem; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
-        .modal-button { background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
-        .modal-button:hover { background-color: #c7d2fe; }
-        .modal-button.delay { background-color: #fef3c7; color: #92400e; border-color: #fde68a; }
-        .modal-button.delay:hover { background-color: #fde68a; }
-        .modal-button.complete { background-color: #d1fae5; color: #065f46; border-color: #a7f3d0; }
-        .modal-button.complete:hover { background-color: #a7f3d0; }
-        .modal-button:disabled { background-color: #e5e7eb; color: #9ca3af; border-color: #d1d5db; cursor: not-allowed; }
+        .modal { @apply hidden fixed z-50 left-0 top-0 w-full h-full overflow-auto bg-black bg-opacity-50; }
+        .modal-content { @apply bg-white dark:bg-gray-800 mx-auto p-5 border border-gray-300 dark:border-gray-600 w-11/12 md:w-3/4 lg:max-w-3xl rounded-lg shadow-xl my-[10%]; }
+        .close-button { @apply text-gray-400 dark:text-gray-500 float-right text-2xl font-bold leading-none; }
+        .close-button:hover, .close-button:focus { @apply text-black dark:text-white no-underline cursor-pointer; }
+
+        /* General Button Styles */
+        .control-button { @apply text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out; }
+        .modal-action-button { @apply font-medium py-1 px-3 rounded text-sm border; }
+        .modal-action-button:disabled { @apply bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 border-gray-300 dark:border-gray-500 cursor-not-allowed; }
+
+        /* Specific Button Colors */
+        .button-blue { @apply bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700; }
+        .button-green { @apply bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700; }
+        .button-yellow { @apply bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700; }
+        .button-orange { @apply bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700; }
+        .button-red { @apply bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700; }
+        .button-gray { @apply bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200; }
+
+        .modal-button-blue { @apply bg-indigo-100 text-indigo-800 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-200 dark:border-indigo-700 dark:hover:bg-indigo-800; }
+        .modal-button-delay { @apply bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700 dark:hover:bg-yellow-800; }
+        .modal-button-complete { @apply bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-900 dark:text-emerald-200 dark:border-emerald-700 dark:hover:bg-emerald-800; }
+
+        /* Input field dark mode */
+        input[type="number"], input[type="file"] {
+             @apply dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500;
+        }
 
     </style>
 </head>
 <body class="p-6 md:p-10">
 
-    <header class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">arcFlow</h1>
-        <p class="text-gray-600">Construction Project Scheduling & Optimization</p>
+    <header class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">arcFlow</h1>
+            <p class="text-gray-600 dark:text-gray-400">Construction Project Scheduling & Optimization</p>
+        </div>
+        <button id="dark-mode-toggle" title="Toggle Dark Mode" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+            <svg id="theme-toggle-dark-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+            <svg id="theme-toggle-light-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 10.607a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM17 17a1 1 0 11-2 0 1 1 0 012 0zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+        </button>
     </header>
 
     <main id="app-container">
 
-        <section id="upload-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">1. Upload Project Plan</h2>
-            <div id="drop-zone" class="drop-zone p-10 text-center rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+        <section id="upload-section" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">1. Upload Project Plan</h2>
+            <div id="drop-zone" class="drop-zone">
                 <input type="file" id="file-input" class="hidden" accept=".json">
-                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                <p class="mt-2 text-sm text-gray-600">
-                    <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span class="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">Click to upload</span> or drag and drop
                 </p>
-                <p class="text-xs text-gray-500">JSON project data file (.json)</p>
-                <p id="file-name" class="text-sm text-gray-800 font-medium mt-3"></p>
-                <p id="upload-error" class="text-sm text-red-600 font-medium mt-3 hidden"></p> </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400">JSON project data file (.json)</p>
+                <p id="file-name" class="text-sm text-gray-800 dark:text-gray-200 font-medium mt-3"></p>
+                <p id="upload-error" class="text-sm text-red-600 dark:text-red-400 font-medium mt-3 hidden"></p>
+            </div>
         </section>
 
-        <section id="analysis-section" class="hidden bg-white p-6 rounded-lg shadow-md mb-8 text-center">
+        <section id="analysis-section" class="hidden bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8 text-center">
             <div class="flex justify-center items-center space-x-2">
-                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin h-5 w-5 text-blue-500 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                <p class="text-lg font-medium text-gray-700">Reading and analyzing project data...</p>
+                <p class="text-lg font-medium text-gray-700 dark:text-gray-200">Reading and analyzing project data...</p>
             </div>
-            <p class="text-sm text-gray-500 mt-2">Parsing tasks, dependencies, and calculating initial schedule.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Parsing tasks, dependencies, and calculating initial schedule.</p>
         </section>
 
         <section id="schedule-section" class="hidden">
              <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                 <h2 id="schedule-project-name" class="text-xl font-semibold text-gray-700">Project Schedule</h2> <div class="flex items-center gap-2 flex-wrap">
-                     <button id="zoom-in-btn" title="Zoom In" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-l text-sm">
+                 <h2 id="schedule-project-name" class="text-xl font-semibold text-gray-700 dark:text-gray-200">Project Schedule</h2>
+                 <div class="flex items-center gap-1 flex-wrap"> <button id="overview-btn" title="Fit to Screen" class="p-2 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                         </svg>
+                     </button>
+                     <button id="zoom-in-btn" title="Zoom In" class="p-2 rounded-l bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
                      </button>
-                     <button id="zoom-out-btn" title="Zoom Out" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-r text-sm border-l border-gray-400">
+                     <button id="zoom-out-btn" title="Zoom Out" class="p-2 rounded-r bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border-l border-gray-400 dark:border-gray-600 transition">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" /></svg>
                      </button>
                  </div>
              </div>
 
-            <div id="gantt-chart" class="gantt-container bg-white p-4 rounded-lg shadow-md">
+            <div id="gantt-chart" class="gantt-container">
                 <div id="gantt-header" class="relative h-8 mb-2" style="min-width: 100%;">
                     </div>
                 <div id="gantt-grid" class="relative" style="min-width: 100%;">
                     </div>
             </div>
 
-            <div class="mt-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-700 mb-3">Schedule Controls</h3>
-                <p class="text-sm text-gray-600 mb-4">Click on a task bar to view details. Use buttons below to manage the schedule.</p>
+            <div class="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">Schedule Controls</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Click on a task bar to view details. Use buttons below to manage the schedule.</p>
                 <div class="flex flex-wrap gap-2">
-                    <button id="optimize-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule +/-</button>
-                    <button id="export-csv-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export as CSV</button>
-                    <button id="critical-path-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Toggle Critical Path</button>
-                    <button id="reset-values-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset Values</button>
-                    <button id="upload-new-btn" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Upload New Plan</button>
+                    <button id="optimize-btn" class="control-button button-blue">Optimize Schedule +/-</button>
+                    <button id="export-csv-btn" class="control-button button-green">Export as CSV</button>
+                    <button id="critical-path-btn" class="control-button button-yellow">Toggle Critical Path</button>
+                    <button id="reset-values-btn" class="control-button button-orange">Reset Values</button>
+                    <button id="upload-new-btn" class="control-button button-red">Upload New Plan</button>
                 </div>
-                 <p id="optimize-status" class="text-sm text-gray-500 mt-2 italic"></p> </div>
+                 <p id="optimize-status" class="text-sm text-gray-500 dark:text-gray-400 mt-2 italic"></p> </div>
         </section>
 
     </main>
 
     <div id="task-modal" class="modal">
-        <div class="modal-content shadow-xl">
+        <div class="modal-content">
             <span id="close-modal-btn" class="close-button">&times;</span>
-            <h3 id="modal-task-name" class="text-lg font-semibold mb-3">Task Details</h3>
-            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
-                <p><strong class="text-gray-600">ID:</strong> <span id="modal-task-id"></span></p>
-                <p><strong class="text-gray-600">Craft:</strong> <span id="modal-task-craft"></span></p>
-                <p><strong class="text-gray-600">Base Duration:</strong> <span id="modal-task-base-duration"></span> days</p>
-                <p><strong class="text-gray-600">Delay Added:</strong> <span id="modal-task-delay"></span> days</p>
-                <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
-                <p><strong class="text-gray-600">Manual Start Offset:</strong> <span id="modal-task-manual-offset"></span> days</p>
-                <p><strong class="text-gray-600">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
-                <p><strong class="text-gray-600">Status:</strong> <span id="modal-task-status"></span></p>
-                <p><strong class="text-gray-600">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
-                <p><strong class="text-gray-600">Earliest Finish (EF):</strong> <span id="modal-task-ef"></span></p>
-                <p><strong class="text-gray-600">Latest Start (LS):</strong> <span id="modal-task-ls"></span></p>
-                <p><strong class="text-gray-600">Latest Finish (LF):</strong> <span id="modal-task-lf"></span></p>
-                <p><strong class="text-gray-600">Float/Slack:</strong> <span id="modal-task-float"></span> days</p>
-                <p class="col-span-2"><strong class="text-gray-600">Actual Finish Day:</strong> <span id="modal-task-actual-finish"></span></p>
-                <p class="col-span-2"><strong class="text-gray-600">Dependencies:</strong> <span id="modal-task-deps"></span></p>
+            <h3 id="modal-task-name" class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Task Details</h3>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3 text-gray-700 dark:text-gray-300">
+                <p><strong class="text-gray-600 dark:text-gray-400">ID:</strong> <span id="modal-task-id"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Craft:</strong> <span id="modal-task-craft"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Base Duration:</strong> <span id="modal-task-base-duration"></span> days</p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Delay Added:</strong> <span id="modal-task-delay"></span> days</p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Manual Start Offset:</strong> <span id="modal-task-manual-offset"></span> days</p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Status:</strong> <span id="modal-task-status"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Earliest Finish (EF):</strong> <span id="modal-task-ef"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Latest Start (LS):</strong> <span id="modal-task-ls"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Latest Finish (LF):</strong> <span id="modal-task-lf"></span></p>
+                <p><strong class="text-gray-600 dark:text-gray-400">Float/Slack:</strong> <span id="modal-task-float"></span> days</p>
+                <p class="col-span-2"><strong class="text-gray-600 dark:text-gray-400">Actual Finish Day:</strong> <span id="modal-task-actual-finish"></span></p>
+                <p class="col-span-2"><strong class="text-gray-600 dark:text-gray-400">Dependencies:</strong> <span id="modal-task-deps"></span></p>
             </div>
-            <hr class="my-3">
-            <h4 class="text-md font-semibold mb-2 text-gray-700">Task Actions:</h4>
+            <hr class="my-3 dark:border-gray-600">
+            <h4 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">Task Actions:</h4>
             <div class="flex flex-wrap gap-2">
-                 <button id="modal-change-start-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Set Manual Start</button>
-                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button>
-                 <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies</button>
-                 <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Add Delay</button>
-                 <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
+                 <button id="modal-change-start-btn" class="modal-action-button modal-button-blue">Reschedule Start</button>
+                 <button id="modal-adjust-duration-btn" class="modal-action-button modal-button-blue">Adjust Base Duration</button>
+                 <button id="modal-change-deps-btn" class="modal-action-button modal-button-blue">Change Dependencies</button>
+                 <button id="modal-delay-btn" class="modal-action-button modal-button-delay">Add Delay</button>
+                 <button id="modal-complete-btn" class="modal-action-button modal-button-complete">Mark as Completed</button>
             </div>
-             <p class="text-xs text-gray-500 mt-4">*Note: Actions modify the current schedule. Recalculations are based on dependencies and durations/buffers.</p>
+             <p class="text-xs text-gray-500 dark:text-gray-400 mt-4">*Note: Actions modify the current schedule. Recalculations are based on dependencies and durations/buffers.</p>
              <input type="hidden" id="modal-current-task-id">
         </div>
     </div>
 
     <div id="dependency-console-modal" class="modal">
-        <div class="modal-content shadow-xl">
+        <div class="modal-content">
             <span id="close-dep-console-btn" class="close-button">&times;</span>
-            <h3 class="text-lg font-semibold mb-3">Dependency Console (Mock-up)</h3>
-            <p class="text-sm text-gray-600 mb-4">Editing dependencies for: <strong id="dep-console-task-name">Task Name</strong></p>
-            <div class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50">
-                <div>
-                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Predecessors (Finish-to-Start)</h4>
+            <h3 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Dependency Console (Mock-up)</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">Editing dependencies for: <strong id="dep-console-task-name" class="text-gray-800 dark:text-gray-100">Task Name</strong></p>
+            <div class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+                <div class="text-gray-700 dark:text-gray-300">
+                    <h4 class="font-semibold text-sm mb-2 ">Predecessors (Finish-to-Start)</h4>
                     <ul class="text-xs space-y-1">
                         <li><label><input type="checkbox" checked disabled> Task A (ID: 1)</label></li>
                         <li><label><input type="checkbox" disabled> Task B (ID: 2)</label></li>
@@ -282,38 +247,38 @@
                          <li><label><input type="checkbox" disabled> Task E (ID: 5)</label></li>
                          </ul>
                 </div>
-                 <div>
-                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Successors</h4>
+                 <div class="text-gray-700 dark:text-gray-300">
+                    <h4 class="font-semibold text-sm mb-2">Successors</h4>
                      <ul class="text-xs space-y-1">
                         <li><label><input type="checkbox" checked disabled> Task F (ID: 6)</label></li>
                         <li><label><input type="checkbox" disabled> Task G (ID: 7)</label></li>
                          </ul>
                 </div>
             </div>
-            <p class="text-xs text-gray-500 mt-4">*Note: This is a visual mock-up. Dependency editing functionality is not implemented.</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-4">*Note: This is a visual mock-up. Dependency editing functionality is not implemented.</p>
             <div class="mt-4 text-right">
-                 <button id="dep-console-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded text-sm">Cancel</button>
-                 <button id="dep-console-save-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-1 px-3 rounded text-sm ml-2" disabled>Save Changes</button>
+                 <button id="dep-console-cancel-btn" class="button-gray font-medium py-1 px-3 rounded text-sm">Cancel</button>
+                 <button id="dep-console-save-btn" class="control-button button-blue font-medium py-1 px-3 rounded text-sm ml-2" disabled>Save Changes</button>
             </div>
         </div>
     </div>
 
     <div id="completion-modal" class="modal">
-        <div class="modal-content shadow-xl w-full max-w-md">
+        <div class="modal-content w-full max-w-md">
             <span id="close-completion-modal-btn" class="close-button">&times;</span>
-            <h3 class="text-lg font-semibold mb-3">Confirm Task Completion</h3>
-            <p class="text-sm mb-2">Task: <strong id="completion-task-name">Task Name</strong></p>
-            <p class="text-sm mb-4">Calculated Finish Day (EF): <strong id="completion-calculated-ef">0</strong></p>
+            <h3 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Confirm Task Completion</h3>
+            <p class="text-sm mb-2 text-gray-700 dark:text-gray-300">Task: <strong id="completion-task-name" class="text-gray-800 dark:text-gray-100">Task Name</strong></p>
+            <p class="text-sm mb-4 text-gray-700 dark:text-gray-300">Calculated Finish Day (EF): <strong id="completion-calculated-ef" class="text-gray-800 dark:text-gray-100">0</strong></p>
             <div class="mb-4">
-                <label for="completion-actual-day-input" class="block text-sm font-medium text-gray-700 mb-1">Actual Completion Day:</label>
+                <label for="completion-actual-day-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Actual Completion Day:</label>
                 <input type="number" id="completion-actual-day-input" name="completion-actual-day" min="0" step="1"
-                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                 <p class="text-xs text-gray-500 mt-1">Enter the day number when the task was actually completed.</p>
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter the day number when the task was actually completed.</p>
             </div>
             <input type="hidden" id="completion-task-id">
             <div class="mt-5 text-right space-x-2">
-                 <button id="cancel-completion-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md text-sm">Cancel</button>
-                 <button id="confirm-completion-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md text-sm">Confirm Completion</button>
+                 <button id="cancel-completion-btn" class="button-gray font-medium py-2 px-4 rounded-md text-sm">Cancel</button>
+                 <button id="confirm-completion-btn" class="control-button button-green font-medium py-2 px-4 rounded-md text-sm">Confirm Completion</button>
             </div>
         </div>
     </div>
@@ -324,11 +289,11 @@
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const fileNameDisplay = document.getElementById('file-name');
-        const uploadErrorMsg = document.getElementById('upload-error'); // Added
+        const uploadErrorMsg = document.getElementById('upload-error');
         const uploadSection = document.getElementById('upload-section');
         const analysisSection = document.getElementById('analysis-section');
         const scheduleSection = document.getElementById('schedule-section');
-        const scheduleProjectName = document.getElementById('schedule-project-name'); // Added
+        const scheduleProjectName = document.getElementById('schedule-project-name');
         const ganttChart = document.getElementById('gantt-chart');
         const ganttHeader = document.getElementById('gantt-header');
         const ganttGrid = document.getElementById('gantt-grid');
@@ -374,6 +339,7 @@
         const cancelCompletionBtn = document.getElementById('cancel-completion-btn');
         const confirmCompletionBtn = document.getElementById('confirm-completion-btn');
         // Control Buttons
+        const overviewBtn = document.getElementById('overview-btn'); // Added
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
         const optimizeBtn = document.getElementById('optimize-btn');
@@ -382,6 +348,11 @@
         const resetValuesBtn = document.getElementById('reset-values-btn');
         const uploadNewBtn = document.getElementById('upload-new-btn');
         const optimizeStatusMsg = document.getElementById('optimize-status');
+        // Dark Mode Toggle
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
 
         // --- State Variables ---
         let projectData = null;
@@ -409,19 +380,18 @@
             if (files.length > 0) handleFileUpload(files[0]);
         });
 
-        // Task Modal Close
+        // Modal Closing
         closeModalBtn.addEventListener('click', () => taskModal.style.display = 'none');
-        window.addEventListener('click', (event) => { if (event.target == taskModal) taskModal.style.display = 'none'; });
-
-        // Dependency Console Modal Close
         closeDepConsoleBtn.addEventListener('click', () => dependencyConsoleModal.style.display = 'none');
         depConsoleCancelBtn.addEventListener('click', () => dependencyConsoleModal.style.display = 'none');
-        window.addEventListener('click', (event) => { if (event.target == dependencyConsoleModal) dependencyConsoleModal.style.display = 'none'; });
-
-        // Completion Modal Close
         closeCompletionModalBtn.addEventListener('click', () => completionModal.style.display = 'none');
         cancelCompletionBtn.addEventListener('click', () => completionModal.style.display = 'none');
-        window.addEventListener('click', (event) => { if (event.target == completionModal) completionModal.style.display = 'none'; });
+        // Close modals on outside click
+        window.addEventListener('click', (event) => {
+             if (event.target == taskModal) taskModal.style.display = 'none';
+             if (event.target == dependencyConsoleModal) dependencyConsoleModal.style.display = 'none';
+             if (event.target == completionModal) completionModal.style.display = 'none';
+        });
 
 
          // Reset Buttons
@@ -431,9 +401,8 @@
              projectData = {
                  projectName: projectData.projectName,
                  tasks: originalTaskData.map(taskDef => ({
-                     ...taskDef, // Spread original definitions
-                     // Reset dynamic/calculated fields
-                     delayDuration: taskDef.delayDuration || 0, // Keep original delay if needed? Or reset? Resetting for now.
+                     ...taskDef,
+                     delayDuration: 0, // Reset delay on full reset
                      manualOffset: 0,
                      currentBuffer: taskDef.maxBuffer,
                      status: 'pending',
@@ -454,7 +423,7 @@
              analysisSection.classList.add('hidden');
              scheduleSection.classList.add('hidden');
              fileNameDisplay.textContent = '';
-             uploadErrorMsg.textContent = ''; // Clear errors
+             uploadErrorMsg.textContent = '';
              uploadErrorMsg.classList.add('hidden');
              fileInput.value = '';
              ganttGrid.innerHTML = '';
@@ -468,15 +437,28 @@
              console.log("Resetting to upload new plan.");
          });
 
+        // View Control Buttons
+        overviewBtn.addEventListener('click', () => { // Added listener
+            if (!projectData || !projectData.totalDuration || !ganttChart) return;
+            const containerWidth = ganttChart.clientWidth; // Usable width inside the container
+            const PADDING_BUFFER = 20; // Add a small buffer to avoid scrollbar appearing unnecessarily
+            const targetWidth = containerWidth - PADDING_BUFFER;
+
+            if (projectData.totalDuration > 0 && targetWidth > 0) {
+                currentDayWidth = Math.max(1, targetWidth / projectData.totalDuration); // Ensure at least 1px width
+                renderGanttChart(projectData);
+                console.log(`Zoomed to fit. Day width: ${currentDayWidth.toFixed(2)}px`);
+            }
+        });
 
         zoomInBtn.addEventListener('click', () => {
             if (!projectData) return;
-            currentDayWidth = Math.min(100, currentDayWidth + 10);
+            currentDayWidth = Math.min(150, currentDayWidth + 10); // Increased max zoom
             renderGanttChart(projectData);
         });
         zoomOutBtn.addEventListener('click', () => {
             if (!projectData) return;
-            currentDayWidth = Math.max(20, currentDayWidth - 10);
+            currentDayWidth = Math.max(5, currentDayWidth - 10); // Increased min zoom slightly
             renderGanttChart(projectData);
         });
 
@@ -599,96 +581,94 @@
             recalculateAndRender();
         });
 
+        // Dark Mode Toggle Listener
+        darkModeToggle.addEventListener('click', () => {
+            // toggle icons inside button
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+
+            // if set via local storage previously
+            if (localStorage.getItem('theme')) {
+                if (localStorage.getItem('theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+            // if NOT set via local storage previously
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+        });
+
 
         // --- Core Functions ---
 
         function handleFileUpload(file) {
             fileNameDisplay.textContent = `Selected file: ${file.name}`;
-            uploadErrorMsg.classList.add('hidden'); // Hide previous errors
+            uploadErrorMsg.classList.add('hidden');
             uploadSection.classList.add('hidden');
             analysisSection.classList.remove('hidden');
-
             const reader = new FileReader();
-
             reader.onload = function(event) {
                 try {
                     const fileContent = event.target.result;
                     const jsonData = JSON.parse(fileContent);
-
-                    // --- Basic Validation ---
-                    if (!jsonData || typeof jsonData !== 'object') {
-                        throw new Error("Invalid JSON structure: Root must be an object.");
-                    }
-                    if (!jsonData.projectName || typeof jsonData.projectName !== 'string') {
-                         console.warn("Project name missing or invalid in JSON, using default.");
-                         jsonData.projectName = "Untitled Project"; // Use default
-                    }
-                     if (!Array.isArray(jsonData.tasks)) {
-                        throw new Error("Invalid JSON structure: 'tasks' must be an array.");
-                    }
-                     // Add more detailed validation per task if needed (e.g., check for id, duration)
-                     if (jsonData.tasks.length === 0) {
-                         console.warn("Warning: Project has no tasks defined in the JSON file.");
-                     } else {
+                    if (!jsonData || typeof jsonData !== 'object') throw new Error("Invalid JSON structure: Root must be an object.");
+                    if (!jsonData.projectName || typeof jsonData.projectName !== 'string') jsonData.projectName = "Untitled Project";
+                    if (!Array.isArray(jsonData.tasks)) throw new Error("Invalid JSON structure: 'tasks' must be an array.");
+                    if (jsonData.tasks.length > 0) {
                          const firstTask = jsonData.tasks[0];
                          if (typeof firstTask.id === 'undefined' || typeof firstTask.name === 'undefined' || typeof firstTask.duration === 'undefined') {
                              throw new Error("Invalid task structure: Tasks must have at least 'id', 'name', and 'duration'.");
                          }
                      }
-                    // --- End Validation ---
 
-
-                    // Store the raw definitions from the file
-                    originalTaskData = JSON.parse(JSON.stringify(jsonData.tasks)); // Use parsed tasks
-
-                    // Create the initial project state
+                    originalTaskData = JSON.parse(JSON.stringify(jsonData.tasks));
                     projectData = {
-                        projectName: jsonData.projectName, // Use project name from file
+                        projectName: jsonData.projectName,
                         tasks: originalTaskData.map(taskDef => ({
-                            // Ensure all required fields exist, provide defaults if missing
                             id: taskDef.id,
                             name: taskDef.name || `Task ${taskDef.id}`,
                             craft: taskDef.craft || 'N/A',
-                            duration: typeof taskDef.duration === 'number' && taskDef.duration >= 0 ? taskDef.duration : 1, // Default duration 1
+                            duration: typeof taskDef.duration === 'number' && taskDef.duration >= 0 ? taskDef.duration : 1,
                             dependencies: Array.isArray(taskDef.dependencies) ? taskDef.dependencies : [],
                             minBuffer: typeof taskDef.minBuffer === 'number' ? taskDef.minBuffer : 0,
                             maxBuffer: typeof taskDef.maxBuffer === 'number' ? taskDef.maxBuffer : 0,
-                            // Initialize dynamic/calculated fields
-                            delayDuration: 0,
-                            manualOffset: 0,
-                            actualFinishDay: null,
-                            currentBuffer: typeof taskDef.maxBuffer === 'number' ? taskDef.maxBuffer : 0, // Start with max buffer
+                            delayDuration: 0, manualOffset: 0, actualFinishDay: null,
+                            currentBuffer: typeof taskDef.maxBuffer === 'number' ? taskDef.maxBuffer : 0,
                             status: 'pending',
                             es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                         })),
                         totalDuration: 0
                     };
-                    buffersAreMinimized = false; // Reset toggle state
+                    buffersAreMinimized = false;
                     isCriticalPathHighlighted = false;
                     optimizeStatusMsg.textContent = 'Schedule calculated with maximum buffers.';
-                    scheduleProjectName.textContent = projectData.projectName; // Update project name display
-
-                    recalculateAndRender(); // Perform initial calculation and render
-
+                    scheduleProjectName.textContent = projectData.projectName;
+                    recalculateAndRender();
                     analysisSection.classList.add('hidden');
                     scheduleSection.classList.remove('hidden');
                     console.log(`Project "${projectData.projectName}" data loaded successfully.`);
-
                 } catch (error) {
                     console.error("Error processing file:", error);
-                    uploadErrorMsg.textContent = `Error: ${error.message}. Please upload a valid JSON file with the expected structure.`;
+                    uploadErrorMsg.textContent = `Error: ${error.message}. Please upload a valid JSON file.`;
                     uploadErrorMsg.classList.remove('hidden');
-                    // Reset UI back to upload state
                     uploadSection.classList.remove('hidden');
                     analysisSection.classList.add('hidden');
                     scheduleSection.classList.add('hidden');
                     fileNameDisplay.textContent = '';
                     fileInput.value = '';
-                    projectData = null;
-                    originalTaskData = null;
+                    projectData = null; originalTaskData = null;
                 }
             };
-
             reader.onerror = function(event) {
                 console.error("File reading error:", event.target.error);
                  uploadErrorMsg.textContent = `Error reading file: ${event.target.error}`;
@@ -696,13 +676,9 @@
                  uploadSection.classList.remove('hidden');
                  analysisSection.classList.add('hidden');
                  scheduleSection.classList.add('hidden');
-                 fileNameDisplay.textContent = '';
-                 fileInput.value = '';
-                 projectData = null;
-                 originalTaskData = null;
+                 fileNameDisplay.textContent = ''; fileInput.value = '';
+                 projectData = null; originalTaskData = null;
             };
-
-            // Read the file as text
             reader.readAsText(file);
         }
 
@@ -742,13 +718,12 @@
                 task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
                  return task.ef;
             };
-            let changed = true; let iterations = 0; const maxIterations = tasks.length * 3; // Increased max iterations slightly
+            let changed = true; let iterations = 0; const maxIterations = tasks.length * 3;
             while(changed && iterations < maxIterations) {
                 changed = false;
                 tasks.forEach(task => {
-                     if (task.status !== 'completed') {
-                        const oldEF = task.ef; calculateES_EF(task.id); if(task.ef !== oldEF) changed = true;
-                     } else if (task.actualFinishDay !== null) { task.ef = task.actualFinishDay; }
+                     if (task.status !== 'completed') { const oldEF = task.ef; calculateES_EF(task.id); if(task.ef !== oldEF) changed = true; }
+                     else if (task.actualFinishDay !== null) { task.ef = task.actualFinishDay; }
                 });
                 iterations++;
             }
@@ -820,28 +795,23 @@
                 taskContainer.classList.add('gantt-task-bar-container');
                 const taskStartDay = task.es || 0;
                 const effectiveDuration = task.duration + (task.delayDuration || 0);
-                const totalCalculatedDuration = effectiveDuration + task.currentBuffer; // Duration used for calculations
-                let visualEndDay = task.ef; // End day based on calculations
-
-                 // If completed, visual length might be shorter or longer than calculated EF based on actualFinishDay
+                const totalCalculatedDuration = effectiveDuration + task.currentBuffer;
+                let visualEndDay = task.ef;
                  let totalVisualDuration = totalCalculatedDuration;
                  if (task.status === 'completed' && task.actualFinishDay !== null) {
                      visualEndDay = task.actualFinishDay;
-                     totalVisualDuration = visualEndDay - taskStartDay; // Visual duration based on actual finish
-                     taskContainer.style.width = `${Math.max(currentDayWidth * 0.1, totalVisualDuration * currentDayWidth)}px`; // Ensure minimum width
+                     totalVisualDuration = visualEndDay - taskStartDay;
+                     taskContainer.style.width = `${Math.max(currentDayWidth * 0.1, totalVisualDuration * currentDayWidth)}px`;
                  } else {
                       taskContainer.style.width = `${Math.max(currentDayWidth * 0.1, totalVisualDuration * currentDayWidth)}px`;
                  }
-
                 taskContainer.style.left = `${taskStartDay * currentDayWidth}px`;
                 taskContainer.style.top = `${index * (taskHeight + taskGap)}px`;
                 taskContainer.style.height = `${taskHeight}px`;
                 taskContainer.dataset.taskId = task.id;
                 taskContainer.innerHTML = '';
                 let currentOffsetPercent = 0;
-
-                // Calculate segment widths based on the total *visual* duration
-                const displayDuration = Math.max(0.1, totalVisualDuration); // Use visual duration, prevent zero
+                const displayDuration = Math.max(0.1, totalVisualDuration);
 
                 if (task.duration > 0) {
                     const baseDiv = document.createElement('div');
@@ -868,14 +838,13 @@
                     bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
                     taskContainer.appendChild(bufferDiv);
                 }
-                 if (displayDuration <= 0.1 && (task.duration <= 0 && task.delayDuration <= 0)) { // Handle zero effective duration tasks
+                 if (displayDuration <= 0.1 && (task.duration <= 0 && task.delayDuration <= 0)) {
                      taskContainer.style.width = `${currentDayWidth * 0.5}px`;
                      if (taskContainer.children.length === 0) {
                          const baseDiv = document.createElement('div'); baseDiv.classList.add('gantt-task-bar-base'); baseDiv.style.width = '100%';
                          baseDiv.textContent = `${task.name} (${task.craft})`; taskContainer.appendChild(baseDiv);
                      }
                  }
-
 
                 taskContainer.classList.remove('critical-path', 'status-completed', 'status-delayed');
                 if (task.status === 'completed') { taskContainer.classList.add('status-completed'); taskContainer.title = `${task.name} (Completed Day ${task.actualFinishDay})`; }
@@ -961,6 +930,18 @@
              document.body.appendChild(link); link.click(); document.body.removeChild(link);
              console.log("Exporting schedule to CSV.");
         }
+
+        // --- Dark Mode Initial Setup ---
+        function updateThemeToggleIcons() {
+             if (document.documentElement.classList.contains('dark')) {
+                themeToggleLightIcon.classList.remove('hidden');
+                themeToggleDarkIcon.classList.add('hidden');
+            } else {
+                themeToggleLightIcon.classList.add('hidden');
+                themeToggleDarkIcon.classList.remove('hidden');
+            }
+        }
+        updateThemeToggleIcons(); // Set initial icon state
 
     </script>
 
