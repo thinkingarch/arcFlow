@@ -32,11 +32,27 @@
             border-radius: 0.5rem; /* rounded-lg */
             background-color: white;
         }
-        .gantt-task-bar {
+        /* Container for the task bar (base + buffer) */
+        .gantt-task-bar-container {
             position: absolute;
             height: 2rem; /* h-8 */
+            display: flex; /* Use flexbox for base + buffer */
             border-radius: 0.375rem; /* rounded-md */
-            background-color: #3b82f6; /* Default: Tailwind blue-500 */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
+            cursor: pointer;
+            overflow: hidden; /* Clip child elements */
+            border: 1px solid transparent; /* For hover/selection states */
+             transition: transform 0.2s ease, border 0.2s ease;
+        }
+         .gantt-task-bar-container:hover {
+             transform: translateY(-1px);
+             border-color: #9ca3af; /* gray-400 */
+         }
+
+        /* Base duration part of the bar */
+        .gantt-task-bar-base {
+            height: 100%;
+            background-color: #60a5fa; /* Default: Tailwind blue-400 */
             color: white;
             font-size: 0.75rem; /* text-xs */
             padding: 0 0.5rem; /* px-2 */
@@ -45,38 +61,47 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease, border 0.2s ease, opacity 0.3s ease;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
-            border: 2px solid transparent;
+            transition: background-color 0.2s ease;
+            border-right: 1px solid rgba(255, 255, 255, 0.2); /* Separator line */
         }
-        .gantt-task-bar:hover {
-            background-color: #2563eb; /* Tailwind blue-600 */
-            transform: translateY(-1px);
+        /* Buffer part of the bar */
+        .gantt-task-bar-buffer {
+            height: 100%;
+            background-color: #93c5fd; /* Lighter blue: Tailwind blue-300 */
+            transition: background-color 0.2s ease;
+            font-size: 0.65rem; /* smaller text for buffer */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e40af; /* dark blue text */
+            overflow: hidden;
         }
         /* Style for critical path tasks */
-        .gantt-task-bar.critical-path {
-            background-color: #eab308; /* Tailwind yellow-500 */
-            border-color: #ca8a04; /* Tailwind yellow-600 */
+        .gantt-task-bar-container.critical-path .gantt-task-bar-base {
+            background-color: #facc15; /* Tailwind yellow-400 */
             color: #422006;
+             border-right-color: rgba(66, 32, 6, 0.2);
         }
-        .gantt-task-bar.critical-path:hover {
-             background-color: #ca8a04; /* Tailwind yellow-600 */
+         .gantt-task-bar-container.critical-path .gantt-task-bar-buffer {
+            background-color: #fde047; /* Tailwind yellow-300 */
+            color: #78350f; /* dark yellow/brown text */
         }
+
         /* Style for completed tasks */
-        .gantt-task-bar.status-completed {
-            background-color: #10b981; /* Tailwind emerald-500 */
-            opacity: 0.7;
+         .gantt-task-bar-container.status-completed {
+             opacity: 0.7;
+         }
+        .gantt-task-bar-container.status-completed .gantt-task-bar-base {
+            background-color: #34d399; /* Tailwind emerald-400 */
+             border-right-color: rgba(255, 255, 255, 0.2);
         }
-        .gantt-task-bar.status-completed:hover {
-             background-color: #059669; /* Tailwind emerald-600 */
-             opacity: 0.8;
+         .gantt-task-bar-container.status-completed .gantt-task-bar-buffer {
+            background-color: #6ee7b7; /* Tailwind emerald-300 */
+             color: #065f46; /* dark emerald text */
         }
-        /* Style for delayed tasks (optional visual cue) */
-        .gantt-task-bar.status-delayed {
-             /* Add a subtle indicator, maybe a border or icon? */
-             /* For now, no distinct style, delay is handled by duration change */
-        }
+         .gantt-task-bar-container.status-completed:hover {
+              opacity: 0.8;
+         }
 
         .gantt-dependency-line {
             position: absolute;
@@ -101,62 +126,17 @@
              border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
         }
         /* Modal styles */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed;
-            z-index: 50;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto; /* Adjusted margin */
-            padding: 20px;
-            border: 1px solid #888;
-            width: 90%; /* Wider for more info */
-            max-width: 600px; /* Increased max width */
-            border-radius: 0.5rem; /* rounded-lg */
-        }
-        .close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .modal-button {
-             background-color: #e0e7ff; /* indigo-100 */
-             color: #3730a3; /* indigo-800 */
-             border: 1px solid #c7d2fe; /* indigo-200 */
-        }
-        .modal-button:hover {
-             background-color: #c7d2fe; /* indigo-200 */
-        }
-        .modal-button.delay {
-             background-color: #fef3c7; /* yellow-100 */
-             color: #92400e; /* yellow-800 */
-             border-color: #fde68a; /* yellow-200 */
-        }
-         .modal-button.delay:hover {
-             background-color: #fde68a; /* yellow-200 */
-        }
-        .modal-button.complete {
-             background-color: #d1fae5; /* emerald-100 */
-             color: #065f46; /* emerald-800 */
-             border-color: #a7f3d0; /* emerald-200 */
-        }
-         .modal-button.complete:hover {
-             background-color: #a7f3d0; /* emerald-200 */
-        }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 0.5rem; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        .modal-button { background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+        .modal-button:hover { background-color: #c7d2fe; }
+        .modal-button.delay { background-color: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .modal-button.delay:hover { background-color: #fde68a; }
+        .modal-button.complete { background-color: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+        .modal-button.complete:hover { background-color: #a7f3d0; }
+        .modal-button:disabled { background-color: #e5e7eb; color: #9ca3af; border-color: #d1d5db; cursor: not-allowed; }
 
     </style>
 </head>
@@ -218,12 +198,12 @@
                 <h3 class="text-lg font-semibold text-gray-700 mb-3">Schedule Controls</h3>
                 <p class="text-sm text-gray-600 mb-4">Click on a task bar to view details. Use buttons below to manage the schedule.</p>
                 <div class="flex flex-wrap gap-2">
-                    <button id="optimize-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule (Min Buffers)</button>
+                    <button id="optimize-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule +/-</button>
                     <button id="export-csv-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export as CSV</button>
                     <button id="critical-path-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Toggle Critical Path</button>
                     <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset / Upload New</button>
                 </div>
-            </div>
+                 <p id="optimize-status" class="text-sm text-gray-500 mt-2 italic"></p> </div>
         </section>
 
     </main>
@@ -270,16 +250,15 @@
         const ganttChart = document.getElementById('gantt-chart');
         const ganttHeader = document.getElementById('gantt-header');
         const ganttGrid = document.getElementById('gantt-grid');
-        // Modal elements
         const taskModal = document.getElementById('task-modal');
         const closeModalBtn = document.getElementById('close-modal-btn');
         const modalTaskName = document.getElementById('modal-task-name');
         const modalTaskId = document.getElementById('modal-task-id');
         const modalTaskCraft = document.getElementById('modal-task-craft');
-        const modalTaskBaseDuration = document.getElementById('modal-task-base-duration'); // Renamed
-        const modalTaskBuffer = document.getElementById('modal-task-buffer'); // Added
-        const modalTaskTotalDuration = document.getElementById('modal-task-total-duration'); // Added
-        const modalTaskStatus = document.getElementById('modal-task-status'); // Added
+        const modalTaskBaseDuration = document.getElementById('modal-task-base-duration');
+        const modalTaskBuffer = document.getElementById('modal-task-buffer');
+        const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
+        const modalTaskStatus = document.getElementById('modal-task-status');
         const modalTaskDeps = document.getElementById('modal-task-deps');
         const modalTaskEs = document.getElementById('modal-task-es');
         const modalTaskEf = document.getElementById('modal-task-ef');
@@ -287,31 +266,30 @@
         const modalTaskLf = document.getElementById('modal-task-lf');
         const modalTaskFloat = document.getElementById('modal-task-float');
         const modalCurrentTaskIdInput = document.getElementById('modal-current-task-id');
-        // Modal action buttons
         const modalAdjustDurationBtn = document.getElementById('modal-adjust-duration-btn');
         const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn');
         const modalDelayBtn = document.getElementById('modal-delay-btn');
         const modalCompleteBtn = document.getElementById('modal-complete-btn');
-        // Main control buttons
         const resetButton = document.getElementById('reset-button');
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
         const optimizeBtn = document.getElementById('optimize-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const criticalPathBtn = document.getElementById('critical-path-btn');
+        const optimizeStatusMsg = document.getElementById('optimize-status'); // Added
 
         // --- State Variables ---
-        let projectData = null; // Store the current project data state
-        let originalTaskData = null; // Store the initial task definitions (duration, deps, buffers)
+        let projectData = null;
+        let originalTaskData = null;
         let criticalPathTasks = new Set();
         let isCriticalPathHighlighted = false;
+        let buffersAreMinimized = false; // State for the Optimize toggle
         let currentDayWidth = 40;
         const taskHeight = 32;
         const taskGap = 8;
 
         // --- Mock Data (Initial Structure - Enhanced) ---
         const initialTaskDefinitions = [
-            // Added minBuffer, maxBuffer. Duration is now base duration.
             { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1 },
             { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3 },
             { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2 },
@@ -334,7 +312,6 @@
 
         // --- Event Listeners ---
 
-        // File Upload Simulation
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -349,11 +326,9 @@
             if (files.length > 0) handleFileUpload(files[0]);
         });
 
-        // Modal Control
         closeModalBtn.addEventListener('click', () => taskModal.style.display = 'none');
         window.addEventListener('click', (event) => { if (event.target == taskModal) taskModal.style.display = 'none'; });
 
-        // Reset Button
          resetButton.addEventListener('click', () => {
             uploadSection.classList.remove('hidden');
             analysisSection.classList.add('hidden');
@@ -365,10 +340,11 @@
             projectData = null;
             originalTaskData = null;
             isCriticalPathHighlighted = false;
+            buffersAreMinimized = false; // Reset toggle state
+            optimizeStatusMsg.textContent = ''; // Clear status message
             criticalPathTasks.clear();
         });
 
-        // Zoom Controls
         zoomInBtn.addEventListener('click', () => {
             if (!projectData) return;
             currentDayWidth = Math.min(100, currentDayWidth + 10);
@@ -383,16 +359,28 @@
         // --- Action Buttons ---
         optimizeBtn.addEventListener('click', () => {
             if (!projectData) return;
-            console.log("Optimizing schedule (setting buffers to minimum)...");
-            // Set buffers to minimum before recalculating
-            projectData.tasks.forEach(task => {
-                // Only reset buffer if not completed
-                if (task.status !== 'completed') {
-                    task.currentBuffer = task.minBuffer;
-                }
-            });
+
+            buffersAreMinimized = !buffersAreMinimized; // Toggle state
+
+            if (buffersAreMinimized) {
+                console.log("Optimizing schedule (setting buffers to minimum)...");
+                optimizeStatusMsg.textContent = 'Schedule optimized with minimum buffers.';
+                projectData.tasks.forEach(task => {
+                    if (task.status !== 'completed') {
+                        task.currentBuffer = task.minBuffer;
+                    }
+                });
+            } else {
+                console.log("Reverting schedule (setting buffers to maximum)...");
+                 optimizeStatusMsg.textContent = 'Schedule reverted to maximum buffers.';
+                projectData.tasks.forEach(task => {
+                    if (task.status !== 'completed') {
+                        task.currentBuffer = task.maxBuffer;
+                    }
+                });
+            }
             recalculateAndRender();
-            console.log("Schedule optimized.");
+            console.log("Schedule updated.");
         });
 
         exportCsvBtn.addEventListener('click', () => {
@@ -410,27 +398,25 @@
         modalAdjustDurationBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
-            if (!task || task.status === 'completed') return; // Don't edit completed tasks
+            if (!task || task.status === 'completed') return;
 
             const newDurationStr = prompt(`Enter new base duration for "${task.name}" (current: ${task.duration}):`, task.duration);
             const newDuration = parseInt(newDurationStr);
 
-            if (!isNaN(newDuration) && newDuration > 0) {
-                task.duration = newDuration; // Update base duration
-                console.log(`Task ${taskId} duration updated to ${newDuration}.`);
+            if (!isNaN(newDuration) && newDuration >= 0) { // Allow 0 duration? Maybe >= 1
+                task.duration = newDuration;
+                console.log(`Task ${taskId} base duration updated to ${newDuration}.`);
                 recalculateAndRender();
                 taskModal.style.display = 'none';
             } else if (newDurationStr !== null) {
-                alert("Invalid duration. Please enter a positive number.");
+                alert("Invalid duration. Please enter a non-negative number.");
             }
         });
 
         modalChangeDepsBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
-             // Complex UI needed for real implementation.
              console.log(`Simulating dependency change for task ${taskId}. Requires complex UI.`);
              alert("Dependency change requires a more complex interface (not implemented in mock-up). See console.");
-             // In real app: Show UI to select/deselect dependencies, validate, update task.dependencies, then recalculateAndRender().
         });
 
          modalDelayBtn.addEventListener('click', () => {
@@ -442,9 +428,9 @@
             const delay = parseInt(delayStr);
 
             if (!isNaN(delay) && delay >= 0) {
-                // Add delay to the base duration for simplicity in this mock-up
+                // Add delay to the base duration
                 task.duration += delay;
-                task.status = 'delayed'; // Optional status update
+                task.status = 'delayed';
                 console.log(`Task ${taskId} delayed by ${delay} days. New base duration: ${task.duration}.`);
                 recalculateAndRender();
                 taskModal.style.display = 'none';
@@ -459,11 +445,10 @@
             if (!task) return;
 
             task.status = 'completed';
-            // Optionally, fix the finish date or adjust duration if needed
-            // For mock-up, just setting status and re-rendering is enough
+            // Fix the finish time? For simplicity, we just mark and style.
+            // Recalculation might still shift subsequent tasks if this task was critical.
             console.log(`Task ${taskId} marked as completed.`);
-            // No recalculation needed unless completion affects future tasks differently
-            renderGanttChart(projectData); // Just re-render for style change
+            recalculateAndRender(); // Recalculate needed if completion changes critical path/float
             taskModal.style.display = 'none';
         });
 
@@ -476,23 +461,20 @@
             analysisSection.classList.remove('hidden');
 
             setTimeout(() => {
-                // Simulate loading data - deep copy the initial definitions
                 originalTaskData = JSON.parse(JSON.stringify(initialTaskDefinitions));
-
-                // Prepare the working project data
                 projectData = {
-                    projectName: "Modern Residence Construction", // Could be from file
+                    projectName: "Modern Residence Construction",
                     tasks: originalTaskData.map(taskDef => ({
                         ...taskDef,
-                        // Initialize dynamic properties
                         currentBuffer: taskDef.maxBuffer, // Start with max buffer
                         status: 'pending',
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                     })),
                     totalDuration: 0
                 };
-
-                recalculateAndRender(); // Perform initial calculation and render
+                buffersAreMinimized = false; // Reset toggle state on new upload
+                optimizeStatusMsg.textContent = 'Schedule calculated with maximum buffers.'; // Initial status
+                recalculateAndRender();
 
                 analysisSection.classList.add('hidden');
                 scheduleSection.classList.remove('hidden');
@@ -502,120 +484,79 @@
 
         function recalculateAndRender() {
              if (!projectData) return;
-             calculateSchedule(projectData.tasks); // Recalculate timings
-             projectData.totalDuration = Math.max(0, ...projectData.tasks.map(t => t.ef || 0)); // Update total duration
-             criticalPathTasks = findCriticalPathTasks(projectData.tasks); // Recalculate critical path
-             renderGanttChart(projectData); // Re-render the chart
+             calculateSchedule(projectData.tasks);
+             projectData.totalDuration = Math.max(0, ...projectData.tasks.map(t => t.ef || 0));
+             criticalPathTasks = findCriticalPathTasks(projectData.tasks);
+             renderGanttChart(projectData);
         }
 
 
-        // --- CPM Calculation Functions ---
+        // --- CPM Calculation Functions (Unchanged from previous version) ---
+        // Includes forward and backward pass, considers task.duration + task.currentBuffer
 
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
-
-            // Reset timing properties before calculation
             tasks.forEach(task => {
-                // Don't reset duration, buffer, status, dependencies
-                task.es = 0;
-                task.ef = 0;
-                task.ls = Infinity;
-                task.lf = Infinity;
-                task.float = 0;
+                task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
                 task.dependencies = task.dependencies || [];
             });
 
-            // Forward Pass (Calculate Earliest Start/Finish)
-            // Uses task.duration + task.currentBuffer
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
-                // Basic check to prevent infinite loops in case of cycles, and skip completed
-                if (task.ef > 0 || task.status === 'completed') return task.ef;
+                if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef; // Avoid recalc if already started/done and EF known
 
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
-
                     let depEF = depTask.ef;
-                    // If dependency not calculated yet, calculate it recursively
-                    if (depEF === 0 && depTask.status !== 'completed') {
-                        depEF = calculateES_EF(depId);
+                    if (depEF === 0 && depTask.status !== 'completed') { // Ensure dependency EF is calculated
+                         depEF = calculateES_EF(depId);
                     }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
-
                 task.es = maxEF_Dependency;
-                // Use current buffer in calculation
                 task.ef = task.es + task.duration + task.currentBuffer;
-                return task.ef;
+                 return task.ef;
             };
 
-            // Calculate ES/EF for all tasks
-            tasks.forEach(task => {
-                 if (task.status !== 'completed') { // Don't recalculate completed tasks' start/end
-                    calculateES_EF(task.id);
-                 }
-            });
+            tasks.forEach(task => { if (task.status !== 'completed') calculateES_EF(task.id); });
 
             const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
 
-            // Backward Pass (Calculate Latest Start/Finish)
-            // Uses task.duration + task.currentBuffer
             tasks.forEach(task => {
-                 // Reset LS/LF except for completed tasks
-                 if (task.status !== 'completed') {
-                    task.ls = Infinity;
-                    task.lf = Infinity;
-                 }
-                 // Set LF for final tasks
-                if (tasks.every(other => !other.dependencies.includes(task.id))) {
+                 if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
+                 if (tasks.every(other => !other.dependencies.includes(task.id))) { // Is it a final task?
                     task.lf = projectDuration;
                     task.ls = task.lf - task.duration - task.currentBuffer;
-                }
+                 }
             });
 
             const calculateLS_LF = (taskId) => {
                 const task = taskMap.get(taskId);
-                 // Already calculated or completed?
                 if (task.ls !== Infinity || task.status === 'completed') return;
 
                 let minLS_Successor = projectDuration;
                 tasks.forEach(successor => {
                     if (successor.dependencies.includes(taskId)) {
                         if (successor.ls === Infinity && successor.status !== 'completed') {
-                            calculateLS_LF(successor.id); // Calculate successor first
+                            calculateLS_LF(successor.id);
                         }
-                         minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls); // Use calculated LS or project duration
+                        minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls);
                     }
                 });
-
                 task.lf = minLS_Successor;
                 task.ls = task.lf - task.duration - task.currentBuffer;
             };
 
-             // Iterate backwards through tasks
-            for (let i = tasks.length - 1; i >= 0; i--) {
-                 if (tasks[i].status !== 'completed') {
-                    calculateLS_LF(tasks[i].id);
-                 }
-            }
-
-            // Calculate Float
-            tasks.forEach(task => {
-                 if (task.status !== 'completed') {
-                    task.float = task.ls - task.es;
-                 } else {
-                     task.float = 0; // Completed tasks have no float
-                 }
-            });
+            for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
+            tasks.forEach(task => { if (task.status !== 'completed') task.float = task.ls - task.es; else task.float = 0; });
         }
 
 
         function findCriticalPathTasks(tasks) {
             const criticalTasks = new Set();
             tasks.forEach(task => {
-                // Critical tasks have zero (or near zero) float and are not completed
                 if (Math.abs(task.float) < 0.001 && task.status !== 'completed') {
                     criticalTasks.add(task.id);
                 }
@@ -631,7 +572,7 @@
             ganttGrid.innerHTML = '';
             ganttHeader.innerHTML = '';
 
-            const totalDays = Math.ceil(data.totalDuration); // Use ceiling for total days
+            const totalDays = Math.ceil(data.totalDuration);
             const chartWidth = totalDays * currentDayWidth;
             const totalHeight = data.tasks.length * (taskHeight + taskGap);
 
@@ -655,83 +596,79 @@
                 ganttGrid.appendChild(gridLine);
             }
 
-            // Render Task Bars
+            // Render Task Bars (with Base + Buffer visualization)
             data.tasks.forEach((task, index) => {
-                const taskBar = document.createElement('div');
-                taskBar.classList.add('gantt-task-bar');
+                const taskContainer = document.createElement('div');
+                taskContainer.classList.add('gantt-task-bar-container');
                 const taskStartDay = task.es || 0;
-                // Visual width includes base duration + current buffer
-                const visualDuration = task.duration + task.currentBuffer;
-                taskBar.textContent = `${task.name} (${task.craft})`;
-                taskBar.style.left = `${taskStartDay * currentDayWidth}px`;
-                taskBar.style.width = `${visualDuration * currentDayWidth}px`;
-                taskBar.style.top = `${index * (taskHeight + taskGap)}px`;
-                taskBar.style.height = `${taskHeight}px`;
-                taskBar.dataset.taskId = task.id;
+                const totalVisualDuration = task.duration + task.currentBuffer;
 
-                // Apply Status Styling
-                taskBar.classList.remove('critical-path', 'status-completed', 'status-delayed'); // Clear previous styles
-                if (task.status === 'completed') {
-                    taskBar.classList.add('status-completed');
-                    taskBar.title = `${task.name} (Completed)`;
-                } else if (task.status === 'delayed') {
-                     taskBar.classList.add('status-delayed'); // Optional: Add visual cue for delay
-                     taskBar.title = `${task.name} (Delayed)`;
-                } else if (isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
-                    taskBar.classList.add('critical-path');
-                    taskBar.title = `${task.name} (Critical Path)`;
+                taskContainer.style.left = `${taskStartDay * currentDayWidth}px`;
+                taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`;
+                taskContainer.style.top = `${index * (taskHeight + taskGap)}px`;
+                taskContainer.style.height = `${taskHeight}px`;
+                taskContainer.dataset.taskId = task.id;
+
+                // Create Base Duration Div
+                const baseDiv = document.createElement('div');
+                baseDiv.classList.add('gantt-task-bar-base');
+                baseDiv.style.width = `${(task.duration / totalVisualDuration) * 100}%`; // Width as percentage of container
+                baseDiv.textContent = `${task.name} (${task.craft})`; // Text in base part
+
+                // Create Buffer Div (only if buffer > 0)
+                if (task.currentBuffer > 0) {
+                    const bufferDiv = document.createElement('div');
+                    bufferDiv.classList.add('gantt-task-bar-buffer');
+                    bufferDiv.style.width = `${(task.currentBuffer / totalVisualDuration) * 100}%`; // Width as percentage
+                    // Optional: Show buffer value visually if space allows
+                    // bufferDiv.textContent = `+${task.currentBuffer}d`;
+                    taskContainer.appendChild(baseDiv);
+                    taskContainer.appendChild(bufferDiv);
                 } else {
-                     taskBar.title = task.name;
+                     // If no buffer, base takes full width
+                     baseDiv.style.width = '100%';
+                     baseDiv.style.borderRight = 'none'; // No separator if no buffer
+                     taskContainer.appendChild(baseDiv);
                 }
 
 
-                taskBar.addEventListener('click', () => showTaskModal(task));
-                ganttGrid.appendChild(taskBar);
+                // Apply Status Styling to Container
+                taskContainer.classList.remove('critical-path', 'status-completed', 'status-delayed');
+                if (task.status === 'completed') {
+                    taskContainer.classList.add('status-completed');
+                    taskContainer.title = `${task.name} (Completed)`;
+                } else if (task.status === 'delayed') {
+                     taskContainer.classList.add('status-delayed');
+                     taskContainer.title = `${task.name} (Delayed)`;
+                } else if (isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
+                    taskContainer.classList.add('critical-path');
+                    taskContainer.title = `${task.name} (Critical Path)`;
+                } else {
+                     taskContainer.title = task.name;
+                }
 
-                // Render Dependency Lines (Simplified)
+                taskContainer.addEventListener('click', () => showTaskModal(task));
+                ganttGrid.appendChild(taskContainer);
+
+                // Render Dependency Lines (Unchanged logic, connects EF to ES)
                  task.dependencies.forEach(depId => {
                     const preTask = data.tasks.find(t => t.id === depId);
                     const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
                     if (preTask) {
-                        // Start point: End of predecessor bar (EF)
-                        const startX = (preTask.es + preTask.duration + preTask.currentBuffer) * currentDayWidth; // Use EF
+                        const startX = preTask.ef * currentDayWidth; // Use EF
                         const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2;
-                        // End point: Start of current task bar (ES)
                         const endX = task.es * currentDayWidth; // Use ES
                         const endY = index * (taskHeight + taskGap) + taskHeight / 2;
 
-                        if (startX < endX && Math.abs(startX - endX) > 5) { // Only draw if gap exists & avoid tiny lines
-                            // Draw horizontal segment then vertical segment
-                            const horizontalSegment = document.createElement('div');
-                            horizontalSegment.classList.add('gantt-dependency-line');
-                            horizontalSegment.style.position = 'absolute';
-                            horizontalSegment.style.left = `${startX}px`;
-                            horizontalSegment.style.top = `${startY}px`;
-                            horizontalSegment.style.width = `${endX - startX - 5}px`;
-                            horizontalSegment.style.height = `1px`;
-                            horizontalSegment.style.borderWidth = `0 0 1px 0`;
-
-                            const verticalSegment = document.createElement('div');
-                            verticalSegment.classList.add('gantt-dependency-line');
-                            verticalSegment.style.position = 'absolute';
-                            verticalSegment.style.left = `${endX - 5}px`;
-                            verticalSegment.style.top = `${Math.min(startY, endY)}px`;
-                            verticalSegment.style.width = `1px`;
-                            verticalSegment.style.height = `${Math.abs(endY - startY)}px`;
-                            verticalSegment.style.borderWidth = `0 0 0 1px`;
-
-                            const arrow = document.createElement('div');
-                             arrow.style.position = 'absolute';
-                             arrow.style.left = `${endX - 5}px`;
-                             arrow.style.top = `${endY - 3}px`;
-                             arrow.style.width = '0'; arrow.style.height = '0';
-                             arrow.style.borderTop = '4px solid transparent';
-                             arrow.style.borderBottom = '4px solid transparent';
-                             arrow.style.borderLeft = `5px solid #ef4444`;
-
-                             ganttGrid.appendChild(horizontalSegment);
-                             ganttGrid.appendChild(verticalSegment);
-                             ganttGrid.appendChild(arrow);
+                        if (startX < endX && Math.abs(startX - endX) > 5) {
+                            const hLine = document.createElement('div'); hLine.classList.add('gantt-dependency-line'); hLine.style.position = 'absolute';
+                            hLine.style.left = `${startX}px`; hLine.style.top = `${startY}px`; hLine.style.width = `${endX - startX - 5}px`; hLine.style.height = `1px`; hLine.style.borderWidth = `0 0 1px 0`;
+                            const vLine = document.createElement('div'); vLine.classList.add('gantt-dependency-line'); vLine.style.position = 'absolute';
+                            vLine.style.left = `${endX - 5}px`; vLine.style.top = `${Math.min(startY, endY)}px`; vLine.style.width = `1px`; vLine.style.height = `${Math.abs(endY - startY)}px`; vLine.style.borderWidth = `0 0 0 1px`;
+                            const arrow = document.createElement('div'); arrow.style.position = 'absolute';
+                            arrow.style.left = `${endX - 5}px`; arrow.style.top = `${endY - 3}px`; arrow.style.width = '0'; arrow.style.height = '0';
+                            arrow.style.borderTop = '4px solid transparent'; arrow.style.borderBottom = '4px solid transparent'; arrow.style.borderLeft = `5px solid #ef4444`;
+                            ganttGrid.appendChild(hLine); ganttGrid.appendChild(vLine); ganttGrid.appendChild(arrow);
                         }
                     }
                 });
@@ -742,16 +679,16 @@
             modalTaskName.textContent = task.name;
             modalTaskId.textContent = task.id;
             modalTaskCraft.textContent = task.craft;
-            modalTaskBaseDuration.textContent = task.duration; // Show base duration
-            modalTaskBuffer.textContent = task.currentBuffer; // Show current buffer
-            modalTaskTotalDuration.textContent = task.duration + task.currentBuffer; // Show total
+            modalTaskBaseDuration.textContent = task.duration;
+            modalTaskBuffer.textContent = task.currentBuffer;
+            modalTaskTotalDuration.textContent = task.duration + task.currentBuffer;
             modalTaskStatus.textContent = task.status;
             modalTaskEs.textContent = task.es.toFixed(1);
             modalTaskEf.textContent = task.ef.toFixed(1);
             modalTaskLs.textContent = task.ls.toFixed(1);
             modalTaskLf.textContent = task.lf.toFixed(1);
             modalTaskFloat.textContent = task.float.toFixed(1);
-            modalCurrentTaskIdInput.value = task.id; // Store ID for actions
+            modalCurrentTaskIdInput.value = task.id;
 
             const depNames = task.dependencies.map(depId => {
                 const preTask = projectData.tasks.find(t => t.id === depId);
@@ -759,46 +696,31 @@
             }).join(', ') || 'None';
             modalTaskDeps.textContent = depNames;
 
-            // Disable buttons if task is completed
             const isCompleted = task.status === 'completed';
             modalAdjustDurationBtn.disabled = isCompleted;
             modalChangeDepsBtn.disabled = isCompleted;
             modalDelayBtn.disabled = isCompleted;
-            modalCompleteBtn.disabled = isCompleted; // Cannot un-complete via this button
+            modalCompleteBtn.disabled = isCompleted;
 
             taskModal.style.display = 'block';
         }
 
-        // --- Export Function ---
+        // --- Export Function (Unchanged) ---
         function exportScheduleToCSV(tasks, filename = 'arcflow_schedule') {
-            const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
-            const rows = tasks.map(task => [
-                task.id,
-                `"${task.name.replace(/"/g, '""')}"`,
-                `"${task.craft.replace(/"/g, '""')}"`,
-                task.duration,
-                task.currentBuffer,
-                task.status,
-                task.es.toFixed(1),
-                task.ef.toFixed(1),
-                task.ls.toFixed(1),
-                task.lf.toFixed(1),
-                task.float.toFixed(1),
-                `"${(task.dependencies || []).join(',')}"`
-            ]);
-
-            const csvContent = "data:text/csv;charset=utf-8,"
-                + headers.join(',') + '\n'
-                + rows.map(e => e.join(',')).join('\n');
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `${filename.replace(/[^a-z0-9_.-]/gi, '_')}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            console.log("Exporting schedule to CSV.");
+             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
+             const rows = tasks.map(task => [
+                 task.id, `"${task.name.replace(/"/g, '""')}"`, `"${task.craft.replace(/"/g, '""')}"`,
+                 task.duration, task.currentBuffer, task.status,
+                 task.es.toFixed(1), task.ef.toFixed(1), task.ls.toFixed(1), task.lf.toFixed(1), task.float.toFixed(1),
+                 `"${(task.dependencies || []).join(',')}"`
+             ]);
+             const csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n');
+             const encodedUri = encodeURI(csvContent);
+             const link = document.createElement("a");
+             link.setAttribute("href", encodedUri);
+             link.setAttribute("download", `${filename.replace(/[^a-z0-9_.-]/gi, '_')}.csv`);
+             document.body.appendChild(link); link.click(); document.body.removeChild(link);
+             console.log("Exporting schedule to CSV.");
         }
 
     </script>
