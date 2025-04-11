@@ -32,16 +32,16 @@
             border-radius: 0.5rem; /* rounded-lg */
             background-color: white;
         }
-        /* Container for the task bar (base + buffer) */
+        /* Container for the task bar (base + delay + buffer) */
         .gantt-task-bar-container {
             position: absolute;
             height: 2rem; /* h-8 */
-            display: flex; /* Use flexbox for base + buffer */
+            display: flex; /* Use flexbox for segments */
             border-radius: 0.375rem; /* rounded-md */
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
             cursor: pointer;
             overflow: hidden; /* Clip child elements */
-            border: 1px solid transparent; /* For hover/selection states */
+            border: 1px solid transparent;
              transition: transform 0.2s ease, border 0.2s ease;
         }
          .gantt-task-bar-container:hover {
@@ -62,46 +62,68 @@
             overflow: hidden;
             text-overflow: ellipsis;
             transition: background-color 0.2s ease;
-            border-right: 1px solid rgba(255, 255, 255, 0.2); /* Separator line */
+            /* border-right: 1px solid rgba(255, 255, 255, 0.2); Separator handled dynamically */
+        }
+        /* Delay part of the bar */
+        .gantt-task-bar-delay {
+             height: 100%;
+             background-color: #fb923c; /* Tailwind orange-400 */
+             transition: background-color 0.2s ease;
+             font-size: 0.65rem;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             color: #7c2d12; /* dark orange text */
+             overflow: hidden;
+             border-left: 1px solid rgba(255, 255, 255, 0.3);
+             border-right: 1px solid rgba(255, 255, 255, 0.3);
         }
         /* Buffer part of the bar */
         .gantt-task-bar-buffer {
             height: 100%;
             background-color: #93c5fd; /* Lighter blue: Tailwind blue-300 */
             transition: background-color 0.2s ease;
-            font-size: 0.65rem; /* smaller text for buffer */
+            font-size: 0.65rem;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #1e40af; /* dark blue text */
             overflow: hidden;
-        }
-        /* Style for critical path tasks */
-        .gantt-task-bar-container.critical-path .gantt-task-bar-base {
-            background-color: #facc15; /* Tailwind yellow-400 */
-            color: #422006;
-             border-right-color: rgba(66, 32, 6, 0.2);
-        }
-         .gantt-task-bar-container.critical-path .gantt-task-bar-buffer {
-            background-color: #fde047; /* Tailwind yellow-300 */
-            color: #78350f; /* dark yellow/brown text */
+             /* border-left: 1px solid rgba(255, 255, 255, 0.2); Handled dynamically */
         }
 
-        /* Style for completed tasks */
-         .gantt-task-bar-container.status-completed {
-             opacity: 0.7;
+        /* --- Styling overrides based on status/critical path --- */
+
+        /* Critical path tasks */
+        .gantt-task-bar-container.critical-path .gantt-task-bar-base {
+            background-color: #facc15; /* yellow-400 */
+            color: #422006;
+        }
+         .gantt-task-bar-container.critical-path .gantt-task-bar-delay {
+             background-color: #fbbf24; /* amber-400 (slightly different from orange) */
+             color: #7c2d12;
          }
+         .gantt-task-bar-container.critical-path .gantt-task-bar-buffer {
+            background-color: #fde047; /* yellow-300 */
+            color: #78350f;
+        }
+
+        /* Completed tasks */
+         .gantt-task-bar-container.status-completed { opacity: 0.7; }
         .gantt-task-bar-container.status-completed .gantt-task-bar-base {
-            background-color: #34d399; /* Tailwind emerald-400 */
-             border-right-color: rgba(255, 255, 255, 0.2);
+            background-color: #34d399; /* emerald-400 */
         }
-         .gantt-task-bar-container.status-completed .gantt-task-bar-buffer {
-            background-color: #6ee7b7; /* Tailwind emerald-300 */
-             color: #065f46; /* dark emerald text */
-        }
-         .gantt-task-bar-container.status-completed:hover {
-              opacity: 0.8;
+         .gantt-task-bar-container.status-completed .gantt-task-bar-delay {
+             background-color: #6ee7b7; /* emerald-300 */
+             color: #065f46;
          }
+         .gantt-task-bar-container.status-completed .gantt-task-bar-buffer {
+            background-color: #a7f3d0; /* emerald-200 */
+             color: #065f46;
+        }
+         .gantt-task-bar-container.status-completed:hover { opacity: 0.8; }
+
+        /* --- End Status Overrides --- */
 
         .gantt-dependency-line {
             position: absolute;
@@ -216,7 +238,7 @@
                 <p><strong class="text-gray-600">ID:</strong> <span id="modal-task-id"></span></p>
                 <p><strong class="text-gray-600">Craft:</strong> <span id="modal-task-craft"></span></p>
                 <p><strong class="text-gray-600">Base Duration:</strong> <span id="modal-task-base-duration"></span> days</p>
-                <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
+                <p><strong class="text-gray-600">Delay Added:</strong> <span id="modal-task-delay"></span> days</p> <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
                 <p><strong class="text-gray-600">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
                 <p><strong class="text-gray-600">Status:</strong> <span id="modal-task-status"></span></p>
                 <p><strong class="text-gray-600">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
@@ -229,10 +251,8 @@
             <hr class="my-3">
             <h4 class="text-md font-semibold mb-2 text-gray-700">Task Actions:</h4>
             <div class="flex flex-wrap gap-2">
-                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Duration</button>
-                 <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies (Simulated)</button>
-                 <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Mark as Delayed</button>
-                 <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
+                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button> <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies (Simulated)</button>
+                 <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Add Delay</button> <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
             </div>
              <p class="text-xs text-gray-500 mt-4">*Note: Actions modify the current schedule. Recalculations are based on dependencies and durations/buffers.</p>
              <input type="hidden" id="modal-current-task-id">
@@ -256,6 +276,7 @@
         const modalTaskId = document.getElementById('modal-task-id');
         const modalTaskCraft = document.getElementById('modal-task-craft');
         const modalTaskBaseDuration = document.getElementById('modal-task-base-duration');
+        const modalTaskDelay = document.getElementById('modal-task-delay'); // Added
         const modalTaskBuffer = document.getElementById('modal-task-buffer');
         const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
         const modalTaskStatus = document.getElementById('modal-task-status');
@@ -276,37 +297,38 @@
         const optimizeBtn = document.getElementById('optimize-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const criticalPathBtn = document.getElementById('critical-path-btn');
-        const optimizeStatusMsg = document.getElementById('optimize-status'); // Added
+        const optimizeStatusMsg = document.getElementById('optimize-status');
 
         // --- State Variables ---
         let projectData = null;
         let originalTaskData = null;
         let criticalPathTasks = new Set();
         let isCriticalPathHighlighted = false;
-        let buffersAreMinimized = false; // State for the Optimize toggle
+        let buffersAreMinimized = false;
         let currentDayWidth = 40;
         const taskHeight = 32;
         const taskGap = 8;
 
         // --- Mock Data (Initial Structure - Enhanced) ---
         const initialTaskDefinitions = [
-            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1 },
-            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3 },
-            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2 },
-            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2 },
-            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3 },
-            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1 },
-            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2 },
-            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2 },
-            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2 },
-            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1 },
-            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1 },
-            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3 },
-            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2 },
-            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1 },
-            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2 },
-            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4 },
-            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0 }
+            // Added delayDuration: 0 initially
+            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
+            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
+            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2, delayDuration: 0 },
+            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
+            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
+            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
+            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
+            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
+            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2, delayDuration: 0 },
+            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
+            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
+            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
+            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
+            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
+            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
+            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4, delayDuration: 0 },
+            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0, delayDuration: 0 }
         ];
 
 
@@ -340,8 +362,8 @@
             projectData = null;
             originalTaskData = null;
             isCriticalPathHighlighted = false;
-            buffersAreMinimized = false; // Reset toggle state
-            optimizeStatusMsg.textContent = ''; // Clear status message
+            buffersAreMinimized = false;
+            optimizeStatusMsg.textContent = '';
             criticalPathTasks.clear();
         });
 
@@ -359,25 +381,15 @@
         // --- Action Buttons ---
         optimizeBtn.addEventListener('click', () => {
             if (!projectData) return;
-
             buffersAreMinimized = !buffersAreMinimized; // Toggle state
-
             if (buffersAreMinimized) {
                 console.log("Optimizing schedule (setting buffers to minimum)...");
                 optimizeStatusMsg.textContent = 'Schedule optimized with minimum buffers.';
-                projectData.tasks.forEach(task => {
-                    if (task.status !== 'completed') {
-                        task.currentBuffer = task.minBuffer;
-                    }
-                });
+                projectData.tasks.forEach(task => { if (task.status !== 'completed') task.currentBuffer = task.minBuffer; });
             } else {
                 console.log("Reverting schedule (setting buffers to maximum)...");
                  optimizeStatusMsg.textContent = 'Schedule reverted to maximum buffers.';
-                projectData.tasks.forEach(task => {
-                    if (task.status !== 'completed') {
-                        task.currentBuffer = task.maxBuffer;
-                    }
-                });
+                projectData.tasks.forEach(task => { if (task.status !== 'completed') task.currentBuffer = task.maxBuffer; });
             }
             recalculateAndRender();
             console.log("Schedule updated.");
@@ -399,56 +411,45 @@
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
             if (!task || task.status === 'completed') return;
-
             const newDurationStr = prompt(`Enter new base duration for "${task.name}" (current: ${task.duration}):`, task.duration);
             const newDuration = parseInt(newDurationStr);
-
-            if (!isNaN(newDuration) && newDuration >= 0) { // Allow 0 duration? Maybe >= 1
+            if (!isNaN(newDuration) && newDuration >= 0) {
                 task.duration = newDuration;
                 console.log(`Task ${taskId} base duration updated to ${newDuration}.`);
                 recalculateAndRender();
                 taskModal.style.display = 'none';
-            } else if (newDurationStr !== null) {
-                alert("Invalid duration. Please enter a non-negative number.");
-            }
+            } else if (newDurationStr !== null) { alert("Invalid duration."); }
         });
 
         modalChangeDepsBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
-             console.log(`Simulating dependency change for task ${taskId}. Requires complex UI.`);
-             alert("Dependency change requires a more complex interface (not implemented in mock-up). See console.");
+             console.log(`Simulating dependency change for task ${taskId}.`);
+             alert("Dependency change simulation (see console).");
         });
 
          modalDelayBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
              if (!task || task.status === 'completed') return;
-
-            const delayStr = prompt(`Enter delay duration (in days) to add to "${task.name}":`, "1");
+            const delayStr = prompt(`Enter delay duration (in days) to add to "${task.name}" (current delay: ${task.delayDuration}):`, "1");
             const delay = parseInt(delayStr);
-
             if (!isNaN(delay) && delay >= 0) {
-                // Add delay to the base duration
-                task.duration += delay;
-                task.status = 'delayed';
-                console.log(`Task ${taskId} delayed by ${delay} days. New base duration: ${task.duration}.`);
+                // Add to existing delay
+                task.delayDuration += delay;
+                task.status = 'delayed'; // Mark as delayed
+                console.log(`Task ${taskId} delay increased by ${delay} days. Total delay: ${task.delayDuration}.`);
                 recalculateAndRender();
                 taskModal.style.display = 'none';
-            } else if (delayStr !== null) {
-                alert("Invalid delay. Please enter a non-negative number.");
-            }
+            } else if (delayStr !== null) { alert("Invalid delay."); }
         });
 
          modalCompleteBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
             if (!task) return;
-
             task.status = 'completed';
-            // Fix the finish time? For simplicity, we just mark and style.
-            // Recalculation might still shift subsequent tasks if this task was critical.
             console.log(`Task ${taskId} marked as completed.`);
-            recalculateAndRender(); // Recalculate needed if completion changes critical path/float
+            recalculateAndRender();
             taskModal.style.display = 'none';
         });
 
@@ -466,14 +467,15 @@
                     projectName: "Modern Residence Construction",
                     tasks: originalTaskData.map(taskDef => ({
                         ...taskDef,
-                        currentBuffer: taskDef.maxBuffer, // Start with max buffer
+                        delayDuration: taskDef.delayDuration || 0, // Ensure delayDuration exists
+                        currentBuffer: taskDef.maxBuffer,
                         status: 'pending',
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                     })),
                     totalDuration: 0
                 };
-                buffersAreMinimized = false; // Reset toggle state on new upload
-                optimizeStatusMsg.textContent = 'Schedule calculated with maximum buffers.'; // Initial status
+                buffersAreMinimized = false;
+                optimizeStatusMsg.textContent = 'Schedule calculated with maximum buffers.';
                 recalculateAndRender();
 
                 analysisSection.classList.add('hidden');
@@ -491,32 +493,34 @@
         }
 
 
-        // --- CPM Calculation Functions (Unchanged from previous version) ---
-        // Includes forward and backward pass, considers task.duration + task.currentBuffer
+        // --- CPM Calculation Functions ---
+        // Updated to include delayDuration
 
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
             tasks.forEach(task => {
                 task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
                 task.dependencies = task.dependencies || [];
+                task.delayDuration = task.delayDuration || 0; // Ensure it exists
             });
 
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
-                if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef; // Avoid recalc if already started/done and EF known
+                if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
 
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
                     let depEF = depTask.ef;
-                    if (depEF === 0 && depTask.status !== 'completed') { // Ensure dependency EF is calculated
+                    if (depEF === 0 && depTask.status !== 'completed') {
                          depEF = calculateES_EF(depId);
                     }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
                 task.es = maxEF_Dependency;
-                task.ef = task.es + task.duration + task.currentBuffer;
+                // Include delayDuration in EF calculation
+                task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
                  return task.ef;
             };
 
@@ -526,9 +530,10 @@
 
             tasks.forEach(task => {
                  if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
-                 if (tasks.every(other => !other.dependencies.includes(task.id))) { // Is it a final task?
+                 if (tasks.every(other => !other.dependencies.includes(task.id))) {
                     task.lf = projectDuration;
-                    task.ls = task.lf - task.duration - task.currentBuffer;
+                    // Include delayDuration in LS calculation
+                    task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
                  }
             });
 
@@ -546,7 +551,8 @@
                     }
                 });
                 task.lf = minLS_Successor;
-                task.ls = task.lf - task.duration - task.currentBuffer;
+                 // Include delayDuration in LS calculation
+                task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
             };
 
             for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
@@ -596,12 +602,14 @@
                 ganttGrid.appendChild(gridLine);
             }
 
-            // Render Task Bars (with Base + Buffer visualization)
+            // Render Task Bars (with Base + Delay + Buffer visualization)
             data.tasks.forEach((task, index) => {
                 const taskContainer = document.createElement('div');
                 taskContainer.classList.add('gantt-task-bar-container');
                 const taskStartDay = task.es || 0;
-                const totalVisualDuration = task.duration + task.currentBuffer;
+                // Calculate total visual duration including delay
+                const effectiveDuration = task.duration + (task.delayDuration || 0);
+                const totalVisualDuration = effectiveDuration + task.currentBuffer;
 
                 taskContainer.style.left = `${taskStartDay * currentDayWidth}px`;
                 taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`;
@@ -609,27 +617,63 @@
                 taskContainer.style.height = `${taskHeight}px`;
                 taskContainer.dataset.taskId = task.id;
 
+                // Clear container before adding segments
+                taskContainer.innerHTML = '';
+
+                let currentOffsetPercent = 0;
+
                 // Create Base Duration Div
-                const baseDiv = document.createElement('div');
-                baseDiv.classList.add('gantt-task-bar-base');
-                baseDiv.style.width = `${(task.duration / totalVisualDuration) * 100}%`; // Width as percentage of container
-                baseDiv.textContent = `${task.name} (${task.craft})`; // Text in base part
+                if (task.duration > 0) {
+                    const baseDiv = document.createElement('div');
+                    baseDiv.classList.add('gantt-task-bar-base');
+                    const baseWidthPercent = (task.duration / totalVisualDuration) * 100;
+                    baseDiv.style.width = `${baseWidthPercent}%`;
+                    baseDiv.textContent = `${task.name} (${task.craft})`; // Text in base part
+                    // Add border only if there's something next to it
+                    if (task.delayDuration > 0 || task.currentBuffer > 0) {
+                         baseDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.2)';
+                    }
+                    taskContainer.appendChild(baseDiv);
+                    currentOffsetPercent += baseWidthPercent;
+                }
+
+                // Create Delay Div (only if delay > 0)
+                if (task.delayDuration > 0) {
+                    const delayDiv = document.createElement('div');
+                    delayDiv.classList.add('gantt-task-bar-delay');
+                    const delayWidthPercent = (task.delayDuration / totalVisualDuration) * 100;
+                    delayDiv.style.width = `${delayWidthPercent}%`;
+                    // Optional: Show delay value
+                    // delayDiv.textContent = `+${task.delayDuration}d`;
+                    // Add border only if there's a buffer next to it
+                     if (task.currentBuffer > 0) {
+                         delayDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.3)';
+                    }
+                    taskContainer.appendChild(delayDiv);
+                    currentOffsetPercent += delayWidthPercent;
+                }
 
                 // Create Buffer Div (only if buffer > 0)
                 if (task.currentBuffer > 0) {
                     const bufferDiv = document.createElement('div');
                     bufferDiv.classList.add('gantt-task-bar-buffer');
-                    bufferDiv.style.width = `${(task.currentBuffer / totalVisualDuration) * 100}%`; // Width as percentage
-                    // Optional: Show buffer value visually if space allows
+                    const bufferWidthPercent = (task.currentBuffer / totalVisualDuration) * 100;
+                    // Ensure total width doesn't exceed 100% due to rounding
+                    bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
+                    // Optional: Show buffer value
                     // bufferDiv.textContent = `+${task.currentBuffer}d`;
-                    taskContainer.appendChild(baseDiv);
                     taskContainer.appendChild(bufferDiv);
-                } else {
-                     // If no buffer, base takes full width
-                     baseDiv.style.width = '100%';
-                     baseDiv.style.borderRight = 'none'; // No separator if no buffer
-                     taskContainer.appendChild(baseDiv);
                 }
+
+                 // If total duration is 0, ensure container is still minimally visible or handled
+                 if (totalVisualDuration <= 0) {
+                     taskContainer.style.width = `${currentDayWidth * 0.5}px`; // Make it small but visible
+                     const baseDiv = document.createElement('div'); // Add base div even if 0 duration
+                     baseDiv.classList.add('gantt-task-bar-base');
+                     baseDiv.style.width = '100%';
+                     baseDiv.textContent = `${task.name} (${task.craft})`;
+                     taskContainer.appendChild(baseDiv);
+                 }
 
 
                 // Apply Status Styling to Container
@@ -638,28 +682,32 @@
                     taskContainer.classList.add('status-completed');
                     taskContainer.title = `${task.name} (Completed)`;
                 } else if (task.status === 'delayed') {
-                     taskContainer.classList.add('status-delayed');
+                     // No specific class needed now as delay is visualized
                      taskContainer.title = `${task.name} (Delayed)`;
-                } else if (isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
+                }
+
+                // Apply critical path styling AFTER status styling (can override opacity)
+                 if (task.status !== 'completed' && isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
                     taskContainer.classList.add('critical-path');
-                    taskContainer.title = `${task.name} (Critical Path)`;
-                } else {
+                    // Adjust title if already set by delay status
+                    taskContainer.title = taskContainer.title ? `${taskContainer.title} (Critical Path)` : `${task.name} (Critical Path)`;
+                } else if (!taskContainer.title) { // Set default title if not set by status/critical
                      taskContainer.title = task.name;
                 }
+
 
                 taskContainer.addEventListener('click', () => showTaskModal(task));
                 ganttGrid.appendChild(taskContainer);
 
-                // Render Dependency Lines (Unchanged logic, connects EF to ES)
+                // Render Dependency Lines
                  task.dependencies.forEach(depId => {
                     const preTask = data.tasks.find(t => t.id === depId);
                     const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
                     if (preTask) {
-                        const startX = preTask.ef * currentDayWidth; // Use EF
+                        const startX = preTask.ef * currentDayWidth;
                         const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2;
-                        const endX = task.es * currentDayWidth; // Use ES
+                        const endX = task.es * currentDayWidth;
                         const endY = index * (taskHeight + taskGap) + taskHeight / 2;
-
                         if (startX < endX && Math.abs(startX - endX) > 5) {
                             const hLine = document.createElement('div'); hLine.classList.add('gantt-dependency-line'); hLine.style.position = 'absolute';
                             hLine.style.left = `${startX}px`; hLine.style.top = `${startY}px`; hLine.style.width = `${endX - startX - 5}px`; hLine.style.height = `1px`; hLine.style.borderWidth = `0 0 1px 0`;
@@ -680,8 +728,9 @@
             modalTaskId.textContent = task.id;
             modalTaskCraft.textContent = task.craft;
             modalTaskBaseDuration.textContent = task.duration;
+            modalTaskDelay.textContent = task.delayDuration || 0; // Show delay
             modalTaskBuffer.textContent = task.currentBuffer;
-            modalTaskTotalDuration.textContent = task.duration + task.currentBuffer;
+            modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer; // Include delay
             modalTaskStatus.textContent = task.status;
             modalTaskEs.textContent = task.es.toFixed(1);
             modalTaskEf.textContent = task.ef.toFixed(1);
@@ -705,12 +754,12 @@
             taskModal.style.display = 'block';
         }
 
-        // --- Export Function (Unchanged) ---
+        // --- Export Function ---
         function exportScheduleToCSV(tasks, filename = 'arcflow_schedule') {
-             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
+             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Delay Added', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
              const rows = tasks.map(task => [
                  task.id, `"${task.name.replace(/"/g, '""')}"`, `"${task.craft.replace(/"/g, '""')}"`,
-                 task.duration, task.currentBuffer, task.status,
+                 task.duration, task.delayDuration || 0, task.currentBuffer, task.status,
                  task.es.toFixed(1), task.ef.toFixed(1), task.ls.toFixed(1), task.lf.toFixed(1), task.float.toFixed(1),
                  `"${(task.dependencies || []).join(',')}"`
              ]);
