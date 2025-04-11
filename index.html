@@ -223,7 +223,8 @@
                     <button id="optimize-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule +/-</button>
                     <button id="export-csv-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export as CSV</button>
                     <button id="critical-path-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Toggle Critical Path</button>
-                    <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset / Upload New</button>
+                    <button id="reset-values-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset Values</button>
+                    <button id="upload-new-btn" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Upload New Plan</button>
                 </div>
                  <p id="optimize-status" class="text-sm text-gray-500 mt-2 italic"></p> </div>
         </section>
@@ -276,7 +277,7 @@
         const modalTaskId = document.getElementById('modal-task-id');
         const modalTaskCraft = document.getElementById('modal-task-craft');
         const modalTaskBaseDuration = document.getElementById('modal-task-base-duration');
-        const modalTaskDelay = document.getElementById('modal-task-delay'); // Added
+        const modalTaskDelay = document.getElementById('modal-task-delay');
         const modalTaskBuffer = document.getElementById('modal-task-buffer');
         const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
         const modalTaskStatus = document.getElementById('modal-task-status');
@@ -291,17 +292,19 @@
         const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn');
         const modalDelayBtn = document.getElementById('modal-delay-btn');
         const modalCompleteBtn = document.getElementById('modal-complete-btn');
-        const resetButton = document.getElementById('reset-button');
+        // --- Control Buttons ---
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
         const optimizeBtn = document.getElementById('optimize-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const criticalPathBtn = document.getElementById('critical-path-btn');
+        const resetValuesBtn = document.getElementById('reset-values-btn'); // New
+        const uploadNewBtn = document.getElementById('upload-new-btn'); // New
         const optimizeStatusMsg = document.getElementById('optimize-status');
 
         // --- State Variables ---
         let projectData = null;
-        let originalTaskData = null;
+        let originalTaskData = null; // Stores the initial definitions from file/mock
         let criticalPathTasks = new Set();
         let isCriticalPathHighlighted = false;
         let buffersAreMinimized = false;
@@ -351,21 +354,47 @@
         closeModalBtn.addEventListener('click', () => taskModal.style.display = 'none');
         window.addEventListener('click', (event) => { if (event.target == taskModal) taskModal.style.display = 'none'; });
 
-         resetButton.addEventListener('click', () => {
-            uploadSection.classList.remove('hidden');
-            analysisSection.classList.add('hidden');
-            scheduleSection.classList.add('hidden');
-            fileNameDisplay.textContent = '';
-            fileInput.value = '';
-            ganttGrid.innerHTML = '';
-            ganttHeader.innerHTML = '';
-            projectData = null;
-            originalTaskData = null;
-            isCriticalPathHighlighted = false;
-            buffersAreMinimized = false;
-            optimizeStatusMsg.textContent = '';
-            criticalPathTasks.clear();
-        });
+         // New Reset Buttons
+         resetValuesBtn.addEventListener('click', () => {
+             if (!projectData || !originalTaskData) return;
+             console.log("Resetting schedule values to initial state...");
+             // Create a fresh working copy from the original definitions
+             projectData = {
+                 projectName: projectData.projectName, // Keep the same name
+                 tasks: originalTaskData.map(taskDef => ({
+                     ...taskDef,
+                     delayDuration: taskDef.delayDuration || 0,
+                     currentBuffer: taskDef.maxBuffer, // Reset to max buffer
+                     status: 'pending', // Reset status
+                     es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
+                 })),
+                 totalDuration: 0
+             };
+             buffersAreMinimized = false; // Buffers are now max
+             isCriticalPathHighlighted = false; // Turn off highlight
+             optimizeStatusMsg.textContent = 'Schedule reset to initial state (maximum buffers).';
+             recalculateAndRender();
+             console.log("Schedule values reset.");
+         });
+
+         uploadNewBtn.addEventListener('click', () => {
+             // Go back to upload screen, clear everything
+             uploadSection.classList.remove('hidden');
+             analysisSection.classList.add('hidden');
+             scheduleSection.classList.add('hidden');
+             fileNameDisplay.textContent = '';
+             fileInput.value = '';
+             ganttGrid.innerHTML = '';
+             ganttHeader.innerHTML = '';
+             projectData = null;
+             originalTaskData = null;
+             isCriticalPathHighlighted = false;
+             buffersAreMinimized = false;
+             optimizeStatusMsg.textContent = '';
+             criticalPathTasks.clear();
+             console.log("Resetting to upload new plan.");
+         });
+
 
         zoomInBtn.addEventListener('click', () => {
             if (!projectData) return;
@@ -462,12 +491,14 @@
             analysisSection.classList.remove('hidden');
 
             setTimeout(() => {
+                // Store the raw definitions
                 originalTaskData = JSON.parse(JSON.stringify(initialTaskDefinitions));
+                // Create the initial project state
                 projectData = {
-                    projectName: "Modern Residence Construction",
+                    projectName: "Modern Residence Construction", // Reset name too
                     tasks: originalTaskData.map(taskDef => ({
                         ...taskDef,
-                        delayDuration: taskDef.delayDuration || 0, // Ensure delayDuration exists
+                        delayDuration: taskDef.delayDuration || 0,
                         currentBuffer: taskDef.maxBuffer,
                         status: 'pending',
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
@@ -493,37 +524,30 @@
         }
 
 
-        // --- CPM Calculation Functions ---
-        // Updated to include delayDuration
-
+        // --- CPM Calculation Functions (Unchanged) ---
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
             tasks.forEach(task => {
                 task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
                 task.dependencies = task.dependencies || [];
-                task.delayDuration = task.delayDuration || 0; // Ensure it exists
+                task.delayDuration = task.delayDuration || 0;
             });
 
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
-
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
                     let depEF = depTask.ef;
-                    if (depEF === 0 && depTask.status !== 'completed') {
-                         depEF = calculateES_EF(depId);
-                    }
+                    if (depEF === 0 && depTask.status !== 'completed') { depEF = calculateES_EF(depId); }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
                 task.es = maxEF_Dependency;
-                // Include delayDuration in EF calculation
                 task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
                  return task.ef;
             };
-
             tasks.forEach(task => { if (task.status !== 'completed') calculateES_EF(task.id); });
 
             const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
@@ -532,33 +556,25 @@
                  if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
                  if (tasks.every(other => !other.dependencies.includes(task.id))) {
                     task.lf = projectDuration;
-                    // Include delayDuration in LS calculation
                     task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
                  }
             });
-
             const calculateLS_LF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ls !== Infinity || task.status === 'completed') return;
-
                 let minLS_Successor = projectDuration;
                 tasks.forEach(successor => {
                     if (successor.dependencies.includes(taskId)) {
-                        if (successor.ls === Infinity && successor.status !== 'completed') {
-                            calculateLS_LF(successor.id);
-                        }
+                        if (successor.ls === Infinity && successor.status !== 'completed') { calculateLS_LF(successor.id); }
                         minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls);
                     }
                 });
                 task.lf = minLS_Successor;
-                 // Include delayDuration in LS calculation
                 task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
             };
-
             for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
             tasks.forEach(task => { if (task.status !== 'completed') task.float = task.ls - task.es; else task.float = 0; });
         }
-
 
         function findCriticalPathTasks(tasks) {
             const criticalTasks = new Set();
@@ -571,22 +587,18 @@
             return criticalTasks;
         }
 
-        // --- Rendering Function ---
-
+        // --- Rendering Function (Unchanged) ---
         function renderGanttChart(data) {
             if (!data || !data.tasks) { console.error("Invalid data for renderGanttChart"); return; }
             ganttGrid.innerHTML = '';
             ganttHeader.innerHTML = '';
-
             const totalDays = Math.ceil(data.totalDuration);
             const chartWidth = totalDays * currentDayWidth;
             const totalHeight = data.tasks.length * (taskHeight + taskGap);
-
             ganttGrid.style.width = `${chartWidth}px`;
             ganttGrid.style.height = `${totalHeight}px`;
             ganttHeader.style.width = `${chartWidth}px`;
 
-            // Render Header
             for (let day = 0; day < totalDays; day++) {
                 const dayLabel = document.createElement('div');
                 dayLabel.classList.add('gantt-header-day', 'absolute');
@@ -594,7 +606,6 @@
                 dayLabel.style.left = `${day * currentDayWidth}px`;
                 dayLabel.style.width = `${currentDayWidth}px`;
                 ganttHeader.appendChild(dayLabel);
-
                 const gridLine = document.createElement('div');
                 gridLine.classList.add('gantt-grid-line');
                 gridLine.style.left = `${(day + 1) * currentDayWidth}px`;
@@ -602,104 +613,65 @@
                 ganttGrid.appendChild(gridLine);
             }
 
-            // Render Task Bars (with Base + Delay + Buffer visualization)
             data.tasks.forEach((task, index) => {
                 const taskContainer = document.createElement('div');
                 taskContainer.classList.add('gantt-task-bar-container');
                 const taskStartDay = task.es || 0;
-                // Calculate total visual duration including delay
                 const effectiveDuration = task.duration + (task.delayDuration || 0);
                 const totalVisualDuration = effectiveDuration + task.currentBuffer;
-
                 taskContainer.style.left = `${taskStartDay * currentDayWidth}px`;
                 taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`;
                 taskContainer.style.top = `${index * (taskHeight + taskGap)}px`;
                 taskContainer.style.height = `${taskHeight}px`;
                 taskContainer.dataset.taskId = task.id;
-
-                // Clear container before adding segments
                 taskContainer.innerHTML = '';
-
                 let currentOffsetPercent = 0;
 
-                // Create Base Duration Div
                 if (task.duration > 0) {
                     const baseDiv = document.createElement('div');
                     baseDiv.classList.add('gantt-task-bar-base');
                     const baseWidthPercent = (task.duration / totalVisualDuration) * 100;
                     baseDiv.style.width = `${baseWidthPercent}%`;
-                    baseDiv.textContent = `${task.name} (${task.craft})`; // Text in base part
-                    // Add border only if there's something next to it
-                    if (task.delayDuration > 0 || task.currentBuffer > 0) {
-                         baseDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.2)';
-                    }
+                    baseDiv.textContent = `${task.name} (${task.craft})`;
+                    if (task.delayDuration > 0 || task.currentBuffer > 0) { baseDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.2)'; }
                     taskContainer.appendChild(baseDiv);
                     currentOffsetPercent += baseWidthPercent;
                 }
-
-                // Create Delay Div (only if delay > 0)
                 if (task.delayDuration > 0) {
                     const delayDiv = document.createElement('div');
                     delayDiv.classList.add('gantt-task-bar-delay');
                     const delayWidthPercent = (task.delayDuration / totalVisualDuration) * 100;
                     delayDiv.style.width = `${delayWidthPercent}%`;
-                    // Optional: Show delay value
-                    // delayDiv.textContent = `+${task.delayDuration}d`;
-                    // Add border only if there's a buffer next to it
-                     if (task.currentBuffer > 0) {
-                         delayDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.3)';
-                    }
+                    if (task.currentBuffer > 0) { delayDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.3)'; }
                     taskContainer.appendChild(delayDiv);
                     currentOffsetPercent += delayWidthPercent;
                 }
-
-                // Create Buffer Div (only if buffer > 0)
                 if (task.currentBuffer > 0) {
                     const bufferDiv = document.createElement('div');
                     bufferDiv.classList.add('gantt-task-bar-buffer');
-                    const bufferWidthPercent = (task.currentBuffer / totalVisualDuration) * 100;
-                    // Ensure total width doesn't exceed 100% due to rounding
                     bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
-                    // Optional: Show buffer value
-                    // bufferDiv.textContent = `+${task.currentBuffer}d`;
                     taskContainer.appendChild(bufferDiv);
                 }
-
-                 // If total duration is 0, ensure container is still minimally visible or handled
                  if (totalVisualDuration <= 0) {
-                     taskContainer.style.width = `${currentDayWidth * 0.5}px`; // Make it small but visible
-                     const baseDiv = document.createElement('div'); // Add base div even if 0 duration
+                     taskContainer.style.width = `${currentDayWidth * 0.5}px`;
+                     const baseDiv = document.createElement('div');
                      baseDiv.classList.add('gantt-task-bar-base');
                      baseDiv.style.width = '100%';
                      baseDiv.textContent = `${task.name} (${task.craft})`;
                      taskContainer.appendChild(baseDiv);
                  }
 
-
-                // Apply Status Styling to Container
                 taskContainer.classList.remove('critical-path', 'status-completed', 'status-delayed');
-                if (task.status === 'completed') {
-                    taskContainer.classList.add('status-completed');
-                    taskContainer.title = `${task.name} (Completed)`;
-                } else if (task.status === 'delayed') {
-                     // No specific class needed now as delay is visualized
-                     taskContainer.title = `${task.name} (Delayed)`;
-                }
-
-                // Apply critical path styling AFTER status styling (can override opacity)
+                if (task.status === 'completed') { taskContainer.classList.add('status-completed'); taskContainer.title = `${task.name} (Completed)`; }
+                else if (task.status === 'delayed') { taskContainer.title = `${task.name} (Delayed)`; }
                  if (task.status !== 'completed' && isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
                     taskContainer.classList.add('critical-path');
-                    // Adjust title if already set by delay status
                     taskContainer.title = taskContainer.title ? `${taskContainer.title} (Critical Path)` : `${task.name} (Critical Path)`;
-                } else if (!taskContainer.title) { // Set default title if not set by status/critical
-                     taskContainer.title = task.name;
-                }
-
+                } else if (!taskContainer.title) { taskContainer.title = task.name; }
 
                 taskContainer.addEventListener('click', () => showTaskModal(task));
                 ganttGrid.appendChild(taskContainer);
 
-                // Render Dependency Lines
                  task.dependencies.forEach(depId => {
                     const preTask = data.tasks.find(t => t.id === depId);
                     const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
@@ -728,9 +700,9 @@
             modalTaskId.textContent = task.id;
             modalTaskCraft.textContent = task.craft;
             modalTaskBaseDuration.textContent = task.duration;
-            modalTaskDelay.textContent = task.delayDuration || 0; // Show delay
+            modalTaskDelay.textContent = task.delayDuration || 0;
             modalTaskBuffer.textContent = task.currentBuffer;
-            modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer; // Include delay
+            modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer;
             modalTaskStatus.textContent = task.status;
             modalTaskEs.textContent = task.es.toFixed(1);
             modalTaskEf.textContent = task.ef.toFixed(1);
@@ -738,19 +710,16 @@
             modalTaskLf.textContent = task.lf.toFixed(1);
             modalTaskFloat.textContent = task.float.toFixed(1);
             modalCurrentTaskIdInput.value = task.id;
-
             const depNames = task.dependencies.map(depId => {
                 const preTask = projectData.tasks.find(t => t.id === depId);
                 return preTask ? `${preTask.name} (ID: ${depId})` : `ID ${depId}`;
             }).join(', ') || 'None';
             modalTaskDeps.textContent = depNames;
-
             const isCompleted = task.status === 'completed';
             modalAdjustDurationBtn.disabled = isCompleted;
             modalChangeDepsBtn.disabled = isCompleted;
             modalDelayBtn.disabled = isCompleted;
             modalCompleteBtn.disabled = isCompleted;
-
             taskModal.style.display = 'block';
         }
 
