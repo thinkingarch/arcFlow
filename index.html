@@ -26,6 +26,7 @@
         /* Styles for the Gantt chart */
         .gantt-container {
             position: relative;
+            /* Enable horizontal scrolling */
             overflow-x: auto;
             padding: 1rem 0;
             border: 1px solid #e5e7eb; /* Tailwind gray-200 */
@@ -36,7 +37,7 @@
             position: absolute;
             height: 2rem; /* h-8 */
             border-radius: 0.375rem; /* rounded-md */
-            background-color: #3b82f6; /* Tailwind blue-500 */
+            background-color: #3b82f6; /* Default: Tailwind blue-500 */
             color: white;
             font-size: 0.75rem; /* text-xs */
             padding: 0 0.5rem; /* px-2 */
@@ -46,13 +47,24 @@
             overflow: hidden;
             text-overflow: ellipsis;
             cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease, border 0.2s ease;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
+            border: 2px solid transparent; /* Added for highlighting */
         }
         .gantt-task-bar:hover {
             background-color: #2563eb; /* Tailwind blue-600 */
             transform: translateY(-1px);
         }
+        /* Style for critical path tasks */
+        .gantt-task-bar.critical-path {
+            background-color: #eab308; /* Tailwind yellow-500 */
+            border-color: #ca8a04; /* Tailwind yellow-600 */
+            color: #422006; /* Darker text for yellow bg */
+        }
+        .gantt-task-bar.critical-path:hover {
+             background-color: #ca8a04; /* Tailwind yellow-600 */
+        }
+
         .gantt-dependency-line {
             position: absolute;
             border-color: #ef4444; /* Tailwind red-500 */
@@ -145,29 +157,33 @@
         </section>
 
         <section id="schedule-section" class="hidden">
-             <div class="flex justify-between items-center mb-4">
+             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                  <h2 class="text-xl font-semibold text-gray-700">2. Proposed Schedule & Adjustments</h2>
-                 <div>
-                     <button id="zoom-in-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-l text-sm">Zoom In</button>
-                     <button id="zoom-out-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-r text-sm border-l border-gray-400">Zoom Out</button>
+                 <div class="flex items-center gap-2 flex-wrap">
+                     <button id="zoom-in-btn" title="Zoom In" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-l text-sm">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                     </button>
+                     <button id="zoom-out-btn" title="Zoom Out" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-r text-sm border-l border-gray-400">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" /></svg>
+                     </button>
                  </div>
              </div>
 
-            <div id="gantt-chart" class="gantt-container bg-white p-4 rounded-lg shadow-md overflow-hidden">
-                <div id="gantt-header" class="relative h-8 mb-2">
+            <div id="gantt-chart" class="gantt-container bg-white p-4 rounded-lg shadow-md">
+                <div id="gantt-header" class="relative h-8 mb-2" style="min-width: 100%;">
                     </div>
-                <div id="gantt-grid" class="relative">
+                <div id="gantt-grid" class="relative" style="min-width: 100%;">
                     </div>
             </div>
 
             <div class="mt-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-700 mb-3">Schedule Controls (Mock)</h3>
-                <p class="text-sm text-gray-600 mb-4">Click on a task bar in the timeline above to view details or simulate rescheduling actions.</p>
+                <h3 class="text-lg font-semibold text-gray-700 mb-3">Schedule Controls</h3>
+                <p class="text-sm text-gray-600 mb-4">Click on a task bar to view details. Use buttons below to manage the schedule.</p>
                 <div class="flex flex-wrap gap-2">
-                    <button class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule</button>
-                    <button class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export Schedule</button>
-                    <button class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Highlight Critical Path</button>
-                     <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset / Upload New</button>
+                    <button id="optimize-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule</button>
+                    <button id="export-csv-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export as CSV</button>
+                    <button id="critical-path-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Toggle Critical Path</button>
+                    <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset / Upload New</button>
                 </div>
             </div>
         </section>
@@ -178,8 +194,14 @@
         <div class="modal-content shadow-xl">
             <span id="close-modal-btn" class="close-button">&times;</span>
             <h3 id="modal-task-name" class="text-lg font-semibold mb-3">Task Details</h3>
+            <p class="text-sm mb-1"><strong class="text-gray-600">ID:</strong> <span id="modal-task-id"></span></p>
             <p class="text-sm mb-1"><strong class="text-gray-600">Craft:</strong> <span id="modal-task-craft"></span></p>
             <p class="text-sm mb-1"><strong class="text-gray-600">Duration:</strong> <span id="modal-task-duration"></span> days</p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Earliest Start:</strong> <span id="modal-task-es"></span></p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Earliest Finish:</strong> <span id="modal-task-ef"></span></p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Latest Start:</strong> <span id="modal-task-ls"></span></p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Latest Finish:</strong> <span id="modal-task-lf"></span></p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Float/Slack:</strong> <span id="modal-task-float"></span> days</p>
             <p class="text-sm mb-3"><strong class="text-gray-600">Dependencies:</strong> <span id="modal-task-deps"></span></p>
             <hr class="my-3">
             <h4 class="text-md font-semibold mb-2 text-gray-700">Simulate Actions:</h4>
@@ -207,81 +229,77 @@
         const taskModal = document.getElementById('task-modal');
         const closeModalBtn = document.getElementById('close-modal-btn');
         const modalTaskName = document.getElementById('modal-task-name');
+        const modalTaskId = document.getElementById('modal-task-id'); // Added
         const modalTaskCraft = document.getElementById('modal-task-craft');
         const modalTaskDuration = document.getElementById('modal-task-duration');
         const modalTaskDeps = document.getElementById('modal-task-deps');
+        const modalTaskEs = document.getElementById('modal-task-es'); // Added
+        const modalTaskEf = document.getElementById('modal-task-ef'); // Added
+        const modalTaskLs = document.getElementById('modal-task-ls'); // Added
+        const modalTaskLf = document.getElementById('modal-task-lf'); // Added
+        const modalTaskFloat = document.getElementById('modal-task-float'); // Added
         const resetButton = document.getElementById('reset-button');
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const optimizeBtn = document.getElementById('optimize-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const criticalPathBtn = document.getElementById('critical-path-btn');
 
-        // --- Mock Data ---
-        // Represents data extracted from an uploaded file
-        const mockProjectData = {
-            projectName: "Modern Residence Construction",
-            tasks: [
-                { id: 1, name: "Terrain Preparation", craft: "Excavation", start: 0, duration: 3, dependencies: [] },
-                { id: 2, name: "Foundations", craft: "Concrete", start: 3, duration: 7, dependencies: [1] },
-                { id: 3, name: "Framing (Structure)", craft: "Carpentry", start: 10, duration: 10, dependencies: [2] },
-                { id: 4, name: "Roof Installation", craft: "Roofing", start: 20, duration: 5, dependencies: [3] },
-                { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", start: 20, duration: 8, dependencies: [3] },
-                { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", start: 28, duration: 4, dependencies: [5] },
-                { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", start: 25, duration: 6, dependencies: [3] },
-                { id: 8, name: "Electrical Wiring", craft: "Electrical", start: 25, duration: 6, dependencies: [3] },
-                { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", start: 32, duration: 7, dependencies: [6, 7, 8] },
-                { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", start: 39, duration: 4, dependencies: [9] },
-                { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", start: 39, duration: 5, dependencies: [9] },
-                { id: 12, name: "Flooring Installation", craft: "Flooring", start: 44, duration: 6, dependencies: [10, 11] },
-                { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", start: 50, duration: 8, dependencies: [12] },
-                { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", start: 58, duration: 5, dependencies: [13] },
-                { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", start: 63, duration: 7, dependencies: [14] },
-                { id: 16, name: "Garden & Landscaping", craft: "Landscaping", start: 70, duration: 10, dependencies: [15] },
-                { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", start: 80, duration: 2, dependencies: [16] }
-            ],
-            // Calculate total duration dynamically based on the last task's end time
-            get totalDuration() {
-                return this.tasks.reduce((max, task) => Math.max(max, task.start + task.duration), 0);
-            }
-        };
-
+        // --- State Variables ---
+        let projectData = null; // Store the current project data
+        let originalProjectData = null; // Store the initial data after load/analysis
+        let criticalPathTasks = new Set(); // Store IDs of tasks on the critical path
+        let isCriticalPathHighlighted = false;
         let currentDayWidth = 40; // Initial width per day in pixels
         const taskHeight = 32; // h-8
         const taskGap = 8; // space-y-2 equivalent for vertical positioning
+
+        // --- Mock Data (Initial Structure - will be populated on file load) ---
+        const initialMockData = {
+            projectName: "Modern Residence Construction",
+            tasks: [
+                // Durations and Dependencies are key inputs
+                { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [] },
+                { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1] },
+                { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2] },
+                { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3] },
+                { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3] },
+                { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5] },
+                { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3] },
+                { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3] },
+                { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8] },
+                { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9] },
+                { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9] },
+                { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11] },
+                { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12] },
+                { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13] },
+                { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14] },
+                { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15] },
+                { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16] }
+            ],
+            totalDuration: 0 // Will be calculated
+        };
 
         // --- Event Listeners ---
 
         // File Upload Simulation
         dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFileUpload(files[0]);
-            }
+            if (files.length > 0) handleFileUpload(files[0]);
         });
         fileInput.addEventListener('change', (e) => {
             const files = e.target.files;
-            if (files.length > 0) {
-                handleFileUpload(files[0]);
-            }
+            if (files.length > 0) handleFileUpload(files[0]);
         });
 
         // Modal Control
-        closeModalBtn.addEventListener('click', () => {
-            taskModal.style.display = 'none';
-        });
-        window.addEventListener('click', (event) => {
-            if (event.target == taskModal) {
-                taskModal.style.display = 'none';
-            }
-        });
+        closeModalBtn.addEventListener('click', () => taskModal.style.display = 'none');
+        window.addEventListener('click', (event) => { if (event.target == taskModal) taskModal.style.display = 'none'; });
 
         // Reset Button
          resetButton.addEventListener('click', () => {
@@ -289,46 +307,220 @@
             analysisSection.classList.add('hidden');
             scheduleSection.classList.add('hidden');
             fileNameDisplay.textContent = '';
-            fileInput.value = ''; // Clear the file input
-            ganttGrid.innerHTML = ''; // Clear previous chart
-            ganttHeader.innerHTML = ''; // Clear previous header
+            fileInput.value = '';
+            ganttGrid.innerHTML = '';
+            ganttHeader.innerHTML = '';
+            projectData = null; // Clear loaded data
+            originalProjectData = null;
+            isCriticalPathHighlighted = false;
+            criticalPathTasks.clear();
         });
 
         // Zoom Controls
         zoomInBtn.addEventListener('click', () => {
-            currentDayWidth = Math.min(100, currentDayWidth + 10); // Max width 100px
-            renderGanttChart(mockProjectData);
+            if (!projectData) return;
+            currentDayWidth = Math.min(100, currentDayWidth + 10);
+            renderGanttChart(projectData);
         });
-
         zoomOutBtn.addEventListener('click', () => {
-            currentDayWidth = Math.max(20, currentDayWidth - 10); // Min width 20px
-            renderGanttChart(mockProjectData);
+            if (!projectData) return;
+            currentDayWidth = Math.max(20, currentDayWidth - 10);
+            renderGanttChart(projectData);
+        });
+
+        // Action Buttons
+        optimizeBtn.addEventListener('click', () => {
+            if (!projectData) return;
+            console.log("Optimizing schedule...");
+            // Use a deep copy of the original data to optimize from scratch
+            const dataToOptimize = JSON.parse(JSON.stringify(originalProjectData));
+            calculateSchedule(dataToOptimize.tasks); // Recalculate ES, EF, LS, LF, Float
+            projectData = dataToOptimize; // Update current data
+            projectData.totalDuration = Math.max(0, ...projectData.tasks.map(t => t.ef || 0)); // Update total duration
+            isCriticalPathHighlighted = false; // Turn off highlight after optimization
+            criticalPathTasks = findCriticalPathTasks(projectData.tasks); // Recalculate critical path
+            renderGanttChart(projectData);
+            console.log("Schedule optimized (based on earliest start).");
+        });
+
+        exportCsvBtn.addEventListener('click', () => {
+            if (!projectData) return;
+            exportScheduleToCSV(projectData.tasks, projectData.projectName);
+        });
+
+        criticalPathBtn.addEventListener('click', () => {
+            if (!projectData) return;
+            isCriticalPathHighlighted = !isCriticalPathHighlighted; // Toggle state
+            renderGanttChart(projectData); // Re-render to apply/remove highlighting
         });
 
 
-        // --- Functions ---
+        // --- Core Functions ---
 
         function handleFileUpload(file) {
             fileNameDisplay.textContent = `Selected file: ${file.name}`;
             uploadSection.classList.add('hidden');
             analysisSection.classList.remove('hidden');
 
-            // Simulate analysis time
+            // Simulate reading and parsing the file (using mock data for now)
+            // In a real app, you'd use FileReader API for JSON/CSV
+            // or specific libraries for CAD formats (likely server-side).
             setTimeout(() => {
+                // Deep copy initial data to simulate loading
+                projectData = JSON.parse(JSON.stringify(initialMockData));
+                originalProjectData = JSON.parse(JSON.stringify(initialMockData)); // Keep a pristine copy
+
+                // Initial schedule calculation (CPM)
+                calculateSchedule(projectData.tasks);
+                projectData.totalDuration = Math.max(0, ...projectData.tasks.map(t => t.ef || 0));
+                criticalPathTasks = findCriticalPathTasks(projectData.tasks);
+
                 analysisSection.classList.add('hidden');
                 scheduleSection.classList.remove('hidden');
-                renderGanttChart(mockProjectData);
-            }, 2500); // Simulate 2.5 seconds analysis
+                renderGanttChart(projectData);
+                console.log("Project data loaded and initial schedule calculated.");
+            }, 1500); // Shorter simulation time
         }
 
+        // --- CPM Calculation Functions ---
+
+        function calculateSchedule(tasks) {
+            const taskMap = new Map(tasks.map(task => [task.id, task]));
+
+            // Initialize timing properties
+            tasks.forEach(task => {
+                task.es = 0;
+                task.ef = 0;
+                task.ls = Infinity;
+                task.lf = Infinity;
+                task.float = 0;
+                // Ensure dependencies is always an array
+                task.dependencies = task.dependencies || [];
+            });
+
+            // Forward Pass (Calculate Earliest Start/Finish)
+            const calculateES_EF = (taskId) => {
+                const task = taskMap.get(taskId);
+                if (task.ef > 0 || tasks.find(t=>t.id === taskId).ef > 0) return; // Already calculated or being calculated (basic cycle check)
+
+                let maxEF_Dependency = 0;
+                task.dependencies.forEach(depId => {
+                    const depTask = taskMap.get(depId);
+                    if (!depTask) {
+                        console.warn(`Dependency task with ID ${depId} not found for task ${task.id}`);
+                        return;
+                    }
+                    if (depTask.ef === 0 && depTask.dependencies.length > 0) { // Ensure dependency is calculated first
+                         calculateES_EF(depId);
+                    }
+                     maxEF_Dependency = Math.max(maxEF_Dependency, depTask.ef || 0);
+
+                });
+
+                task.es = maxEF_Dependency;
+                task.ef = task.es + task.duration;
+            };
+
+             // Iterate multiple times or use topological sort order if known
+             // Simple iteration approach for mock-up (may need refinement for complex graphs)
+            let changed = true;
+            let iterations = 0;
+            const maxIterations = tasks.length * 2; // Safety break for potential cycles
+            while(changed && iterations < maxIterations) {
+                changed = false;
+                tasks.forEach(task => {
+                    const oldEF = task.ef;
+                    calculateES_EF(task.id);
+                    if(task.ef !== oldEF) changed = true;
+                });
+                iterations++;
+            }
+             if (iterations >= maxIterations) console.warn("Max iterations reached during ES/EF calculation. Possible cycle?");
+
+
+            // Calculate overall project duration
+            const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
+
+            // Backward Pass (Calculate Latest Start/Finish)
+            tasks.forEach(task => {
+                if (tasks.every(other => !other.dependencies.includes(task.id))) {
+                    // Task is a final task (no other task depends on it)
+                    task.lf = projectDuration;
+                    task.ls = task.lf - task.duration;
+                }
+            });
+
+            // Iterate backwards (or reverse topological order)
+            const calculateLS_LF = (taskId) => {
+                const task = taskMap.get(taskId);
+
+                let minLS_Successor = projectDuration; // Start with project duration
+
+                 // Find tasks that depend on this one (successors)
+                 tasks.forEach(successor => {
+                     if (successor.dependencies.includes(taskId)) {
+                         if (successor.ls === Infinity) { // Ensure successor is calculated
+                            calculateLS_LF(successor.id);
+                         }
+                         minLS_Successor = Math.min(minLS_Successor, successor.ls || projectDuration);
+                     }
+                 });
+
+
+                task.lf = minLS_Successor;
+                task.ls = task.lf - task.duration;
+                task.float = task.ls - task.es; // Calculate float/slack
+            };
+
+            // Iterate backwards multiple times or use reverse topological sort
+            changed = true;
+            iterations = 0;
+            while(changed && iterations < maxIterations) {
+                changed = false;
+                 // Iterate in reverse order of IDs (simple approximation for backward pass)
+                 for(let i = tasks.length - 1; i >= 0; i--) {
+                     const task = tasks[i];
+                     const oldLS = task.ls;
+                     calculateLS_LF(task.id);
+                     if(task.ls !== oldLS) changed = true;
+                 }
+                 iterations++;
+            }
+             if (iterations >= maxIterations) console.warn("Max iterations reached during LS/LF calculation. Possible cycle?");
+
+             // Final float calculation just in case
+             tasks.forEach(task => task.float = task.ls - task.es);
+
+        }
+
+
+        function findCriticalPathTasks(tasks) {
+            const criticalTasks = new Set();
+            tasks.forEach(task => {
+                // Tasks with zero (or near zero due to float precision) float are critical
+                if (Math.abs(task.float) < 0.001) {
+                    criticalTasks.add(task.id);
+                }
+            });
+            console.log("Critical Path Task IDs:", Array.from(criticalTasks));
+            return criticalTasks;
+        }
+
+        // --- Rendering Function ---
+
         function renderGanttChart(data) {
+            if (!data || !data.tasks) {
+                console.error("Invalid data provided to renderGanttChart");
+                return;
+            }
             ganttGrid.innerHTML = ''; // Clear previous chart content
             ganttHeader.innerHTML = ''; // Clear previous header content
+
             const totalDays = data.totalDuration;
             const chartWidth = totalDays * currentDayWidth;
             const totalHeight = data.tasks.length * (taskHeight + taskGap);
 
-            // Set dynamic width for the grid and header container
+            // Ensure container min-width accommodates content
             ganttGrid.style.width = `${chartWidth}px`;
             ganttGrid.style.height = `${totalHeight}px`;
             ganttHeader.style.width = `${chartWidth}px`;
@@ -345,29 +537,39 @@
                 // Render Grid Lines
                 const gridLine = document.createElement('div');
                 gridLine.classList.add('gantt-grid-line');
-                gridLine.style.left = `${(day + 1) * currentDayWidth}px`;
+                gridLine.style.left = `${(day + 1) * currentDayWidth}px`; // Position at the end of the day
                 gridLine.style.height = `${totalHeight}px`;
                 ganttGrid.appendChild(gridLine);
             }
-
 
             // Render Task Bars
             data.tasks.forEach((task, index) => {
                 const taskBar = document.createElement('div');
                 taskBar.classList.add('gantt-task-bar');
+                // Use calculated earliest start (es) for positioning
+                const taskStartDay = task.es || 0;
                 taskBar.textContent = `${task.name} (${task.craft})`;
-                taskBar.style.left = `${task.start * currentDayWidth}px`;
+                taskBar.style.left = `${taskStartDay * currentDayWidth}px`;
                 taskBar.style.width = `${task.duration * currentDayWidth}px`;
                 taskBar.style.top = `${index * (taskHeight + taskGap)}px`;
                 taskBar.style.height = `${taskHeight}px`;
-                taskBar.dataset.taskId = task.id; // Store task id for interaction
+                taskBar.dataset.taskId = task.id;
+
+                // Apply critical path highlighting if enabled and task is critical
+                if (isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
+                    taskBar.classList.add('critical-path');
+                    taskBar.title = `${task.name} (Critical Path)`; // Tooltip
+                } else {
+                     taskBar.title = task.name; // Default tooltip
+                }
+
 
                 // Add click listener to open modal
                 taskBar.addEventListener('click', () => showTaskModal(task));
 
                 ganttGrid.appendChild(taskBar);
 
-                // Render Dependency Lines (Simple Mock)
+                // Render Dependency Lines (connecting EF of predecessor to ES of successor)
                 task.dependencies.forEach(depId => {
                     const preTask = data.tasks.find(t => t.id === depId);
                     const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
@@ -375,35 +577,51 @@
                         const line = document.createElement('div');
                         line.classList.add('gantt-dependency-line');
 
-                        const startX = (preTask.start + preTask.duration) * currentDayWidth - (currentDayWidth / 4); // End of pre-task bar
-                        const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2; // Middle of pre-task bar
-                        const endX = task.start * currentDayWidth + (currentDayWidth / 4); // Start of current task bar
-                        const endY = index * (taskHeight + taskGap) + taskHeight / 2; // Middle of current task bar
+                        // Start point: End of predecessor bar (EF)
+                        const startX = (preTask.es + preTask.duration) * currentDayWidth;
+                        const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2;
 
-                        // Simple L-shape line (adjust logic for more complex routing if needed)
-                        const cornerY = endY;
+                        // End point: Start of current task bar (ES)
+                        const endX = task.es * currentDayWidth;
+                        const endY = index * (taskHeight + taskGap) + taskHeight / 2;
 
-                        line.style.left = `${Math.min(startX, endX)}px`;
-                        line.style.top = `${Math.min(startY, cornerY)}px`;
-                        line.style.width = `${Math.abs(endX - startX)}px`;
-                        line.style.height = `${Math.abs(endY - startY)}px`;
+                        // Basic line drawing (needs improvement for complex layouts)
+                        // Draw horizontal segment then vertical segment
+                        const horizontalSegment = document.createElement('div');
+                        horizontalSegment.classList.add('gantt-dependency-line');
+                        horizontalSegment.style.position = 'absolute';
+                        horizontalSegment.style.left = `${startX}px`;
+                        horizontalSegment.style.top = `${startY}px`;
+                        horizontalSegment.style.width = `${endX - startX - 5}px`; // Adjust width slightly
+                        horizontalSegment.style.height = `1px`;
+                        horizontalSegment.style.borderWidth = `0 0 1px 0`;
 
-                        // Adjust border based on direction (very basic)
-                         if (endX > startX) {
-                            line.style.borderWidth = `0 0 1px 1px`; // Down and Right
-                         } else {
-                             line.style.borderWidth = `0 1px 1px 0`; // Down and Left (less common)
-                         }
-                         if (startY === endY) { // Horizontal line only
-                            line.style.left = `${startX}px`;
-                            line.style.top = `${startY}px`;
-                            line.style.width = `${endX - startX}px`;
-                            line.style.height = `1px`;
-                            line.style.borderWidth = `0 0 1px 0`; // Just bottom border
-                         }
+                        const verticalSegment = document.createElement('div');
+                        verticalSegment.classList.add('gantt-dependency-line');
+                        verticalSegment.style.position = 'absolute';
+                        verticalSegment.style.left = `${endX - 5}px`; // Align with end of horizontal
+                        verticalSegment.style.top = `${Math.min(startY, endY)}px`;
+                        verticalSegment.style.width = `1px`;
+                        verticalSegment.style.height = `${Math.abs(endY - startY)}px`;
+                        verticalSegment.style.borderWidth = (endY > startY) ? `0 0 0 1px` : `0 0 0 1px`; // Always left border for vertical
+
+                         // Arrowhead (simple triangle) - Add to the end of the horizontal segment
+                        const arrow = document.createElement('div');
+                        arrow.style.position = 'absolute';
+                        arrow.style.left = `${endX - 5}px`; // Position at the start of the vertical line
+                        arrow.style.top = `${endY - 3}px`; // Center vertically
+                        arrow.style.width = '0';
+                        arrow.style.height = '0';
+                        arrow.style.borderTop = '4px solid transparent';
+                        arrow.style.borderBottom = '4px solid transparent';
+                        arrow.style.borderLeft = `5px solid #ef4444`; // Red arrow pointing right
 
 
-                        ganttGrid.appendChild(line);
+                        if (startX < endX) { // Only draw if predecessor finishes before successor starts
+                             ganttGrid.appendChild(horizontalSegment);
+                             ganttGrid.appendChild(verticalSegment);
+                             ganttGrid.appendChild(arrow);
+                        }
                     }
                 });
             });
@@ -411,16 +629,53 @@
 
         function showTaskModal(task) {
             modalTaskName.textContent = task.name;
+            modalTaskId.textContent = task.id;
             modalTaskCraft.textContent = task.craft;
             modalTaskDuration.textContent = task.duration;
-            // Find dependency names
+            modalTaskEs.textContent = task.es.toFixed(1);
+            modalTaskEf.textContent = task.ef.toFixed(1);
+            modalTaskLs.textContent = task.ls.toFixed(1);
+            modalTaskLf.textContent = task.lf.toFixed(1);
+            modalTaskFloat.textContent = task.float.toFixed(1);
+
             const depNames = task.dependencies.map(depId => {
-                const preTask = mockProjectData.tasks.find(t => t.id === depId);
-                return preTask ? preTask.name : `ID ${depId}`;
+                const preTask = projectData.tasks.find(t => t.id === depId);
+                return preTask ? `${preTask.name} (ID: ${depId})` : `ID ${depId}`;
             }).join(', ') || 'None';
             modalTaskDeps.textContent = depNames;
 
             taskModal.style.display = 'block';
+        }
+
+        // --- Export Function ---
+        function exportScheduleToCSV(tasks, filename = 'arcflow_schedule') {
+            const headers = ['ID', 'Task Name', 'Craft', 'Duration', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
+            const rows = tasks.map(task => [
+                task.id,
+                `"${task.name.replace(/"/g, '""')}"`, // Escape double quotes
+                `"${task.craft.replace(/"/g, '""')}"`,
+                task.duration,
+                task.es.toFixed(1),
+                task.ef.toFixed(1),
+                task.ls.toFixed(1),
+                task.lf.toFixed(1),
+                task.float.toFixed(1),
+                `"${(task.dependencies || []).join(',')}"` // Join dependency IDs
+            ]);
+
+            const csvContent = "data:text/csv;charset=utf-8,"
+                + headers.join(',') + '\n'
+                + rows.map(e => e.join(',')).join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${filename.replace(/[^a-z0-9_.-]/gi, '_')}.csv`); // Sanitize filename
+            document.body.appendChild(link); // Required for Firefox
+
+            link.click(); // This will download the data file
+            document.body.removeChild(link); // Clean up
+            console.log("Exporting schedule to CSV.");
         }
 
     </script>
