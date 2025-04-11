@@ -241,7 +241,8 @@
                 <p><strong class="text-gray-600">Base Duration:</strong> <span id="modal-task-base-duration"></span> days</p>
                 <p><strong class="text-gray-600">Delay Added:</strong> <span id="modal-task-delay"></span> days</p>
                 <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
-                <p><strong class="text-gray-600">Manual Start Offset:</strong> <span id="modal-task-manual-offset"></span> days</p> <p><strong class="text-gray-600">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
+                <p><strong class="text-gray-600">Manual Start Offset:</strong> <span id="modal-task-manual-offset"></span> days</p>
+                <p><strong class="text-gray-600">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
                 <p><strong class="text-gray-600">Status:</strong> <span id="modal-task-status"></span></p>
                 <p><strong class="text-gray-600">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
                 <p><strong class="text-gray-600">Earliest Finish (EF):</strong> <span id="modal-task-ef"></span></p>
@@ -253,8 +254,9 @@
             <hr class="my-3">
             <h4 class="text-md font-semibold mb-2 text-gray-700">Task Actions:</h4>
             <div class="flex flex-wrap gap-2">
-                 <button id="modal-change-start-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Set Manual Start</button> <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button>
-                 <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies (Simulated)</button>
+                 <button id="modal-change-start-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Set Manual Start</button>
+                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button>
+                 <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies</button>
                  <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Add Delay</button>
                  <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
             </div>
@@ -262,6 +264,41 @@
              <input type="hidden" id="modal-current-task-id">
         </div>
     </div>
+
+    <div id="dependency-console-modal" class="modal">
+        <div class="modal-content shadow-xl">
+            <span id="close-dep-console-btn" class="close-button">&times;</span>
+            <h3 class="text-lg font-semibold mb-3">Dependency Console (Mock-up)</h3>
+            <p class="text-sm text-gray-600 mb-4">Editing dependencies for: <strong id="dep-console-task-name">Task Name</strong></p>
+
+            <div class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50">
+                <div>
+                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Predecessors (Finish-to-Start)</h4>
+                    <ul class="text-xs space-y-1">
+                        <li><label><input type="checkbox" checked disabled> Task A (ID: 1)</label></li>
+                        <li><label><input type="checkbox" disabled> Task B (ID: 2)</label></li>
+                        <li><label><input type="checkbox" checked disabled> Task C (ID: 3)</label></li>
+                        <li><label><input type="checkbox" disabled> Task D (ID: 4)</label></li>
+                         <li><label><input type="checkbox" disabled> Task E (ID: 5)</label></li>
+                         </ul>
+                </div>
+                 <div>
+                    <h4 class="font-semibold text-sm mb-2 text-gray-700">Successors</h4>
+                     <ul class="text-xs space-y-1">
+                        <li><label><input type="checkbox" checked disabled> Task F (ID: 6)</label></li>
+                        <li><label><input type="checkbox" disabled> Task G (ID: 7)</label></li>
+                         </ul>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-4">*Note: This is a visual mock-up. Dependency editing functionality is not implemented.</p>
+            <div class="mt-4 text-right">
+                 <button id="dep-console-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded text-sm">Cancel</button>
+                 <button id="dep-console-save-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-1 px-3 rounded text-sm ml-2" disabled>Save Changes</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // --- DOM Elements ---
@@ -274,6 +311,7 @@
         const ganttChart = document.getElementById('gantt-chart');
         const ganttHeader = document.getElementById('gantt-header');
         const ganttGrid = document.getElementById('gantt-grid');
+        // Task Modal elements
         const taskModal = document.getElementById('task-modal');
         const closeModalBtn = document.getElementById('close-modal-btn');
         const modalTaskName = document.getElementById('modal-task-name');
@@ -282,7 +320,7 @@
         const modalTaskBaseDuration = document.getElementById('modal-task-base-duration');
         const modalTaskDelay = document.getElementById('modal-task-delay');
         const modalTaskBuffer = document.getElementById('modal-task-buffer');
-        const modalTaskManualOffset = document.getElementById('modal-task-manual-offset'); // Changed
+        const modalTaskManualOffset = document.getElementById('modal-task-manual-offset');
         const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
         const modalTaskStatus = document.getElementById('modal-task-status');
         const modalTaskDeps = document.getElementById('modal-task-deps');
@@ -292,13 +330,19 @@
         const modalTaskLf = document.getElementById('modal-task-lf');
         const modalTaskFloat = document.getElementById('modal-task-float');
         const modalCurrentTaskIdInput = document.getElementById('modal-current-task-id');
-        // --- Modal Buttons ---
+        // Task Modal Buttons
         const modalChangeStartBtn = document.getElementById('modal-change-start-btn');
         const modalAdjustDurationBtn = document.getElementById('modal-adjust-duration-btn');
-        const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn');
+        const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn'); // Renamed Text in HTML
         const modalDelayBtn = document.getElementById('modal-delay-btn');
         const modalCompleteBtn = document.getElementById('modal-complete-btn');
-        // --- Control Buttons ---
+        // Dependency Console Modal elements
+        const dependencyConsoleModal = document.getElementById('dependency-console-modal');
+        const closeDepConsoleBtn = document.getElementById('close-dep-console-btn');
+        const depConsoleTaskName = document.getElementById('dep-console-task-name');
+        const depConsoleCancelBtn = document.getElementById('dep-console-cancel-btn');
+        const depConsoleSaveBtn = document.getElementById('dep-console-save-btn');
+        // Control Buttons
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
         const optimizeBtn = document.getElementById('optimize-btn');
@@ -310,7 +354,7 @@
 
         // --- State Variables ---
         let projectData = null;
-        let originalTaskData = null; // Stores the initial definitions from file/mock
+        let originalTaskData = null;
         let criticalPathTasks = new Set();
         let isCriticalPathHighlighted = false;
         let buffersAreMinimized = false;
@@ -357,20 +401,26 @@
             if (files.length > 0) handleFileUpload(files[0]);
         });
 
+        // Task Modal Close
         closeModalBtn.addEventListener('click', () => taskModal.style.display = 'none');
         window.addEventListener('click', (event) => { if (event.target == taskModal) taskModal.style.display = 'none'; });
 
-         // New Reset Buttons
+        // Dependency Console Modal Close
+        closeDepConsoleBtn.addEventListener('click', () => dependencyConsoleModal.style.display = 'none');
+        depConsoleCancelBtn.addEventListener('click', () => dependencyConsoleModal.style.display = 'none');
+        window.addEventListener('click', (event) => { if (event.target == dependencyConsoleModal) dependencyConsoleModal.style.display = 'none'; });
+
+
+         // Reset Buttons
          resetValuesBtn.addEventListener('click', () => {
              if (!projectData || !originalTaskData) return;
              console.log("Resetting schedule values to initial state...");
-             // Create a fresh working copy from the original definitions
              projectData = {
                  projectName: projectData.projectName,
                  tasks: originalTaskData.map(taskDef => ({
                      ...taskDef,
                      delayDuration: taskDef.delayDuration || 0,
-                     manualOffset: 0, // Reset manual offset
+                     manualOffset: 0,
                      currentBuffer: taskDef.maxBuffer,
                      status: 'pending',
                      es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
@@ -446,33 +496,22 @@
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
             if (!task || task.status === 'completed') return;
-
-            // Calculate the earliest possible start based *only* on dependencies right now
             let maxEF_Dependency = 0;
              task.dependencies.forEach(depId => {
                  const depTask = projectData.tasks.find(t => t.id === depId);
-                 if (depTask) {
-                     maxEF_Dependency = Math.max(maxEF_Dependency, depTask.ef || 0);
-                 }
+                 if (depTask) maxEF_Dependency = Math.max(maxEF_Dependency, depTask.ef || 0);
              });
-
             const currentOffset = task.manualOffset || 0;
-            const currentEffectiveStart = maxEF_Dependency + currentOffset; // Where it would start based on current offset
-            const desiredStartDayStr = prompt(`Enter desired start day for "${task.name}" (current effective start: ${currentEffectiveStart.toFixed(0)}, offset: ${currentOffset}):`, currentEffectiveStart.toFixed(0));
-
-            if (desiredStartDayStr === null) return; // User cancelled
-
+            const currentEffectiveStart = maxEF_Dependency + currentOffset;
+            const desiredStartDayStr = prompt(`Enter desired start day for "${task.name}" (earliest possible: ${maxEF_Dependency.toFixed(0)}, current effective start: ${currentEffectiveStart.toFixed(0)}):`, currentEffectiveStart.toFixed(0));
+            if (desiredStartDayStr === null) return;
             const desiredStartDay = parseInt(desiredStartDayStr);
             if (!isNaN(desiredStartDay) && desiredStartDay >= 0) {
-                // Calculate the new offset needed to achieve the desired start day,
-                // ensuring it doesn't start before dependencies finish.
                 task.manualOffset = Math.max(0, desiredStartDay - maxEF_Dependency);
                 console.log(`Task ${taskId} manual start offset set to ${task.manualOffset}.`);
                  recalculateAndRender();
                  taskModal.style.display = 'none';
-            } else {
-                alert("Invalid start day. Please enter a non-negative number.");
-            }
+            } else { alert("Invalid start day."); }
         });
 
         modalAdjustDurationBtn.addEventListener('click', () => {
@@ -491,8 +530,14 @@
 
         modalChangeDepsBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
-             console.log(`Simulating dependency change for task ${taskId}.`);
-             alert("Dependency change simulation (see console).");
+            const task = projectData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            // Show the dependency console mock-up
+            depConsoleTaskName.textContent = task.name;
+            // In a real app, populate the console with actual dependency info
+            dependencyConsoleModal.style.display = 'block';
+            taskModal.style.display = 'none'; // Hide the task details modal
+            console.log(`Opened Dependency Console mock-up for task ${taskId}.`);
         });
 
          modalDelayBtn.addEventListener('click', () => {
@@ -535,7 +580,7 @@
                     tasks: originalTaskData.map(taskDef => ({
                         ...taskDef,
                         delayDuration: taskDef.delayDuration || 0,
-                        manualOffset: taskDef.manualOffset || 0, // Initialize manualOffset
+                        manualOffset: taskDef.manualOffset || 0,
                         currentBuffer: taskDef.maxBuffer,
                         status: 'pending',
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
@@ -561,106 +606,61 @@
         }
 
 
-        // --- CPM Calculation Functions ---
-        // Updated to include manualOffset
-
+        // --- CPM Calculation Functions (Unchanged) ---
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
             tasks.forEach(task => {
                 task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
                 task.dependencies = task.dependencies || [];
                 task.delayDuration = task.delayDuration || 0;
-                task.manualOffset = task.manualOffset || 0; // Ensure manualOffset exists
+                task.manualOffset = task.manualOffset || 0;
             });
 
-            // Forward Pass
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
-
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
                     let depEF = depTask.ef;
-                    if (depEF === 0 && depTask.status !== 'completed') {
-                         depEF = calculateES_EF(depId);
-                    }
+                    if (depEF === 0 && depTask.status !== 'completed') { depEF = calculateES_EF(depId); }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
-
-                // Calculate ES using dependencies AND manual offset
                 task.es = maxEF_Dependency + task.manualOffset;
-
-                // Calculate EF using ES, duration, delay, and buffer
                 task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
                  return task.ef;
             };
-
-            // Ensure all tasks are calculated
-            let changed = true;
-            let iterations = 0;
-            const maxIterations = tasks.length * 2;
+            let changed = true; let iterations = 0; const maxIterations = tasks.length * 2;
             while(changed && iterations < maxIterations) {
                 changed = false;
                 tasks.forEach(task => {
-                    if (task.status !== 'completed') {
-                        const oldEF = task.ef;
-                        calculateES_EF(task.id);
-                        if(task.ef !== oldEF) changed = true;
-                    }
+                    if (task.status !== 'completed') { const oldEF = task.ef; calculateES_EF(task.id); if(task.ef !== oldEF) changed = true; }
                 });
                 iterations++;
             }
-             if (iterations >= maxIterations) console.warn("Max iterations reached during ES/EF calculation. Possible cycle?");
+             if (iterations >= maxIterations) console.warn("Max iterations reached during ES/EF calculation.");
 
-
-            // Backward Pass (Calculate LS/LF based on calculated EF/ES)
             const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
-
             tasks.forEach(task => {
                  if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
                  if (tasks.every(other => !other.dependencies.includes(task.id))) {
-                    task.lf = projectDuration;
-                    // LS depends on LF, duration, delay, and buffer
-                    task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
-                 }
+                    task.lf = projectDuration; task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer); }
             });
-
             const calculateLS_LF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ls !== Infinity || task.status === 'completed') return;
-
                 let minLS_Successor = projectDuration;
                 tasks.forEach(successor => {
                     if (successor.dependencies.includes(taskId)) {
-                        if (successor.ls === Infinity && successor.status !== 'completed') {
-                            calculateLS_LF(successor.id);
-                        }
-                        // Successor's LS already includes its own offset.
-                        minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls);
-                    }
+                        if (successor.ls === Infinity && successor.status !== 'completed') { calculateLS_LF(successor.id); }
+                        minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls); }
                 });
-                task.lf = minLS_Successor;
-                 // Adjust LF by the successor's manual offset? No, LS already accounts for it.
-                 // LS depends on LF, duration, delay, and buffer
-                task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
+                task.lf = minLS_Successor; task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
             };
-
-            for (let i = tasks.length - 1; i >= 0; i--) {
-                 if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id);
-            }
-
-            // Calculate Float
-            tasks.forEach(task => {
-                 if (task.status !== 'completed') {
-                     task.float = (typeof task.ls === 'number' && typeof task.es === 'number') ? task.ls - task.es : Infinity;
-                 } else {
-                     task.float = 0;
-                 }
-            });
+            for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
+            tasks.forEach(task => { if (task.status !== 'completed') task.float = (typeof task.ls === 'number' && typeof task.es === 'number') ? task.ls - task.es : Infinity; else task.float = 0; });
         }
-
 
         function findCriticalPathTasks(tasks) {
             const criticalTasks = new Set();
@@ -738,7 +738,7 @@
                     bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
                     taskContainer.appendChild(bufferDiv);
                 }
-                 if (totalVisualDuration <= 0 && task.duration <= 0 && task.delayDuration <= 0) { // Handle zero effective duration tasks
+                 if (totalVisualDuration <= 0 && task.duration <= 0 && task.delayDuration <= 0) {
                      taskContainer.style.width = `${currentDayWidth * 0.5}px`;
                      const baseDiv = document.createElement('div');
                      baseDiv.classList.add('gantt-task-bar-base');
@@ -790,7 +790,7 @@
             modalTaskBaseDuration.textContent = task.duration;
             modalTaskDelay.textContent = task.delayDuration || 0;
             modalTaskBuffer.textContent = task.currentBuffer;
-            modalTaskManualOffset.textContent = task.manualOffset || 0; // Display manual offset
+            modalTaskManualOffset.textContent = task.manualOffset || 0;
             modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer;
             modalTaskStatus.textContent = task.status;
             modalTaskEs.textContent = task.es.toFixed(1);
