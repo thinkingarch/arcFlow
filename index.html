@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>arcFlow - Construction Scheduling</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the app */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Tailwind gray-50 */
+        }
+        /* Style for the file upload area */
+        .drop-zone {
+            border: 2px dashed #cbd5e1; /* Tailwind gray-300 */
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #3b82f6; /* Tailwind blue-500 */
+            background-color: #eff6ff; /* Tailwind blue-50 */
+        }
+        /* Styles for the Gantt chart */
+        .gantt-container {
+            position: relative;
+            overflow-x: auto;
+            padding: 1rem 0;
+            border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            background-color: white;
+        }
+        .gantt-task-bar {
+            position: absolute;
+            height: 2rem; /* h-8 */
+            border-radius: 0.375rem; /* rounded-md */
+            background-color: #3b82f6; /* Tailwind blue-500 */
+            color: white;
+            font-size: 0.75rem; /* text-xs */
+            padding: 0 0.5rem; /* px-2 */
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-sm */
+        }
+        .gantt-task-bar:hover {
+            background-color: #2563eb; /* Tailwind blue-600 */
+            transform: translateY(-1px);
+        }
+        .gantt-dependency-line {
+            position: absolute;
+            border-color: #ef4444; /* Tailwind red-500 */
+            border-width: 0 0 1px 1px; /* Bottom and left border */
+            z-index: 0; /* Behind task bars */
+        }
+        .gantt-grid-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #e5e7eb; /* Tailwind gray-200 */
+            z-index: 0;
+        }
+        .gantt-header-day {
+             min-width: 40px; /* Ensure minimum width for day labels */
+             text-align: center;
+             font-size: 0.75rem; /* text-xs */
+             color: #6b7280; /* text-gray-500 */
+             padding-bottom: 0.5rem; /* pb-2 */
+             border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+        }
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5); /* Dim background */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-6 md:p-10">
+
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">arcFlow</h1>
+        <p class="text-gray-600">Construction Project Scheduling & Optimization</p>
+    </header>
+
+    <main id="app-container">
+
+        <section id="upload-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">1. Upload Project Plan</h2>
+            <div id="drop-zone" class="drop-zone p-10 text-center rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                <input type="file" id="file-input" class="hidden" accept=".dwg, .dxf, .rvt, .ifc, .xlsx, .csv, .json"> <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">
+                    <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                </p>
+                <p class="text-xs text-gray-500">AutoCAD (.dwg, .dxf), Revit (.rvt), IFC, Excel (.xlsx), CSV, JSON</p>
+                <p id="file-name" class="text-sm text-gray-800 font-medium mt-3"></p>
+            </div>
+        </section>
+
+        <section id="analysis-section" class="hidden bg-white p-6 rounded-lg shadow-md mb-8 text-center">
+            <div class="flex justify-center items-center space-x-2">
+                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                <p class="text-lg font-medium text-gray-700">Analyzing project data...</p>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">Extracting tasks, dependencies, and resources.</p>
+        </section>
+
+        <section id="schedule-section" class="hidden">
+             <div class="flex justify-between items-center mb-4">
+                 <h2 class="text-xl font-semibold text-gray-700">2. Proposed Schedule & Adjustments</h2>
+                 <div>
+                     <button id="zoom-in-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-l text-sm">Zoom In</button>
+                     <button id="zoom-out-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-r text-sm border-l border-gray-400">Zoom Out</button>
+                 </div>
+             </div>
+
+            <div id="gantt-chart" class="gantt-container bg-white p-4 rounded-lg shadow-md overflow-hidden">
+                <div id="gantt-header" class="relative h-8 mb-2">
+                    </div>
+                <div id="gantt-grid" class="relative">
+                    </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-3">Schedule Controls (Mock)</h3>
+                <p class="text-sm text-gray-600 mb-4">Click on a task bar in the timeline above to view details or simulate rescheduling actions.</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Optimize Schedule</button>
+                    <button class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Export Schedule</button>
+                    <button class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Highlight Critical Path</button>
+                     <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">Reset / Upload New</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="task-modal" class="modal">
+        <div class="modal-content shadow-xl">
+            <span id="close-modal-btn" class="close-button">&times;</span>
+            <h3 id="modal-task-name" class="text-lg font-semibold mb-3">Task Details</h3>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Craft:</strong> <span id="modal-task-craft"></span></p>
+            <p class="text-sm mb-1"><strong class="text-gray-600">Duration:</strong> <span id="modal-task-duration"></span> days</p>
+            <p class="text-sm mb-3"><strong class="text-gray-600">Dependencies:</strong> <span id="modal-task-deps"></span></p>
+            <hr class="my-3">
+            <h4 class="text-md font-semibold mb-2 text-gray-700">Simulate Actions:</h4>
+            <div class="flex flex-col space-y-2">
+                 <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium py-1 px-3 rounded text-sm text-left">Adjust Duration...</button>
+                 <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium py-1 px-3 rounded text-sm text-left">Change Dependencies...</button>
+                 <button class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-medium py-1 px-3 rounded text-sm text-left">Mark as Delayed...</button>
+                 <button class="bg-green-100 hover:bg-green-200 text-green-700 font-medium py-1 px-3 rounded text-sm text-left">Mark as Completed</button>
+            </div>
+             <p class="text-xs text-gray-500 mt-4">*Note: These actions are simulated in this mock-up.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const uploadSection = document.getElementById('upload-section');
+        const analysisSection = document.getElementById('analysis-section');
+        const scheduleSection = document.getElementById('schedule-section');
+        const ganttChart = document.getElementById('gantt-chart');
+        const ganttHeader = document.getElementById('gantt-header');
+        const ganttGrid = document.getElementById('gantt-grid');
+        const taskModal = document.getElementById('task-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalTaskName = document.getElementById('modal-task-name');
+        const modalTaskCraft = document.getElementById('modal-task-craft');
+        const modalTaskDuration = document.getElementById('modal-task-duration');
+        const modalTaskDeps = document.getElementById('modal-task-deps');
+        const resetButton = document.getElementById('reset-button');
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+
+        // --- Mock Data ---
+        // Represents data extracted from an uploaded file
+        const mockProjectData = {
+            projectName: "Modern Residence Construction",
+            tasks: [
+                { id: 1, name: "Terrain Preparation", craft: "Excavation", start: 0, duration: 3, dependencies: [] },
+                { id: 2, name: "Foundations", craft: "Concrete", start: 3, duration: 7, dependencies: [1] },
+                { id: 3, name: "Framing (Structure)", craft: "Carpentry", start: 10, duration: 10, dependencies: [2] },
+                { id: 4, name: "Roof Installation", craft: "Roofing", start: 20, duration: 5, dependencies: [3] },
+                { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", start: 20, duration: 8, dependencies: [3] },
+                { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", start: 28, duration: 4, dependencies: [5] },
+                { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", start: 25, duration: 6, dependencies: [3] },
+                { id: 8, name: "Electrical Wiring", craft: "Electrical", start: 25, duration: 6, dependencies: [3] },
+                { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", start: 32, duration: 7, dependencies: [6, 7, 8] },
+                { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", start: 39, duration: 4, dependencies: [9] },
+                { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", start: 39, duration: 5, dependencies: [9] },
+                { id: 12, name: "Flooring Installation", craft: "Flooring", start: 44, duration: 6, dependencies: [10, 11] },
+                { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", start: 50, duration: 8, dependencies: [12] },
+                { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", start: 58, duration: 5, dependencies: [13] },
+                { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", start: 63, duration: 7, dependencies: [14] },
+                { id: 16, name: "Garden & Landscaping", craft: "Landscaping", start: 70, duration: 10, dependencies: [15] },
+                { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", start: 80, duration: 2, dependencies: [16] }
+            ],
+            // Calculate total duration dynamically based on the last task's end time
+            get totalDuration() {
+                return this.tasks.reduce((max, task) => Math.max(max, task.start + task.duration), 0);
+            }
+        };
+
+        let currentDayWidth = 40; // Initial width per day in pixels
+        const taskHeight = 32; // h-8
+        const taskGap = 8; // space-y-2 equivalent for vertical positioning
+
+        // --- Event Listeners ---
+
+        // File Upload Simulation
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        // Modal Control
+        closeModalBtn.addEventListener('click', () => {
+            taskModal.style.display = 'none';
+        });
+        window.addEventListener('click', (event) => {
+            if (event.target == taskModal) {
+                taskModal.style.display = 'none';
+            }
+        });
+
+        // Reset Button
+         resetButton.addEventListener('click', () => {
+            uploadSection.classList.remove('hidden');
+            analysisSection.classList.add('hidden');
+            scheduleSection.classList.add('hidden');
+            fileNameDisplay.textContent = '';
+            fileInput.value = ''; // Clear the file input
+            ganttGrid.innerHTML = ''; // Clear previous chart
+            ganttHeader.innerHTML = ''; // Clear previous header
+        });
+
+        // Zoom Controls
+        zoomInBtn.addEventListener('click', () => {
+            currentDayWidth = Math.min(100, currentDayWidth + 10); // Max width 100px
+            renderGanttChart(mockProjectData);
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+            currentDayWidth = Math.max(20, currentDayWidth - 10); // Min width 20px
+            renderGanttChart(mockProjectData);
+        });
+
+
+        // --- Functions ---
+
+        function handleFileUpload(file) {
+            fileNameDisplay.textContent = `Selected file: ${file.name}`;
+            uploadSection.classList.add('hidden');
+            analysisSection.classList.remove('hidden');
+
+            // Simulate analysis time
+            setTimeout(() => {
+                analysisSection.classList.add('hidden');
+                scheduleSection.classList.remove('hidden');
+                renderGanttChart(mockProjectData);
+            }, 2500); // Simulate 2.5 seconds analysis
+        }
+
+        function renderGanttChart(data) {
+            ganttGrid.innerHTML = ''; // Clear previous chart content
+            ganttHeader.innerHTML = ''; // Clear previous header content
+            const totalDays = data.totalDuration;
+            const chartWidth = totalDays * currentDayWidth;
+            const totalHeight = data.tasks.length * (taskHeight + taskGap);
+
+            // Set dynamic width for the grid and header container
+            ganttGrid.style.width = `${chartWidth}px`;
+            ganttGrid.style.height = `${totalHeight}px`;
+            ganttHeader.style.width = `${chartWidth}px`;
+
+            // Render Header (Day numbers)
+            for (let day = 0; day < totalDays; day++) {
+                const dayLabel = document.createElement('div');
+                dayLabel.classList.add('gantt-header-day', 'absolute');
+                dayLabel.textContent = `D${day + 1}`;
+                dayLabel.style.left = `${day * currentDayWidth}px`;
+                dayLabel.style.width = `${currentDayWidth}px`;
+                ganttHeader.appendChild(dayLabel);
+
+                // Render Grid Lines
+                const gridLine = document.createElement('div');
+                gridLine.classList.add('gantt-grid-line');
+                gridLine.style.left = `${(day + 1) * currentDayWidth}px`;
+                gridLine.style.height = `${totalHeight}px`;
+                ganttGrid.appendChild(gridLine);
+            }
+
+
+            // Render Task Bars
+            data.tasks.forEach((task, index) => {
+                const taskBar = document.createElement('div');
+                taskBar.classList.add('gantt-task-bar');
+                taskBar.textContent = `${task.name} (${task.craft})`;
+                taskBar.style.left = `${task.start * currentDayWidth}px`;
+                taskBar.style.width = `${task.duration * currentDayWidth}px`;
+                taskBar.style.top = `${index * (taskHeight + taskGap)}px`;
+                taskBar.style.height = `${taskHeight}px`;
+                taskBar.dataset.taskId = task.id; // Store task id for interaction
+
+                // Add click listener to open modal
+                taskBar.addEventListener('click', () => showTaskModal(task));
+
+                ganttGrid.appendChild(taskBar);
+
+                // Render Dependency Lines (Simple Mock)
+                task.dependencies.forEach(depId => {
+                    const preTask = data.tasks.find(t => t.id === depId);
+                    const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
+                    if (preTask) {
+                        const line = document.createElement('div');
+                        line.classList.add('gantt-dependency-line');
+
+                        const startX = (preTask.start + preTask.duration) * currentDayWidth - (currentDayWidth / 4); // End of pre-task bar
+                        const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2; // Middle of pre-task bar
+                        const endX = task.start * currentDayWidth + (currentDayWidth / 4); // Start of current task bar
+                        const endY = index * (taskHeight + taskGap) + taskHeight / 2; // Middle of current task bar
+
+                        // Simple L-shape line (adjust logic for more complex routing if needed)
+                        const cornerY = endY;
+
+                        line.style.left = `${Math.min(startX, endX)}px`;
+                        line.style.top = `${Math.min(startY, cornerY)}px`;
+                        line.style.width = `${Math.abs(endX - startX)}px`;
+                        line.style.height = `${Math.abs(endY - startY)}px`;
+
+                        // Adjust border based on direction (very basic)
+                         if (endX > startX) {
+                            line.style.borderWidth = `0 0 1px 1px`; // Down and Right
+                         } else {
+                             line.style.borderWidth = `0 1px 1px 0`; // Down and Left (less common)
+                         }
+                         if (startY === endY) { // Horizontal line only
+                            line.style.left = `${startX}px`;
+                            line.style.top = `${startY}px`;
+                            line.style.width = `${endX - startX}px`;
+                            line.style.height = `1px`;
+                            line.style.borderWidth = `0 0 1px 0`; // Just bottom border
+                         }
+
+
+                        ganttGrid.appendChild(line);
+                    }
+                });
+            });
+        }
+
+        function showTaskModal(task) {
+            modalTaskName.textContent = task.name;
+            modalTaskCraft.textContent = task.craft;
+            modalTaskDuration.textContent = task.duration;
+            // Find dependency names
+            const depNames = task.dependencies.map(depId => {
+                const preTask = mockProjectData.tasks.find(t => t.id === depId);
+                return preTask ? preTask.name : `ID ${depId}`;
+            }).join(', ') || 'None';
+            modalTaskDeps.textContent = depNames;
+
+            taskModal.style.display = 'block';
+        }
+
+    </script>
+
+</body>
+</html>
