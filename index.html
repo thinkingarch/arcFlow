@@ -239,10 +239,11 @@
                 <p><strong class="text-gray-600">ID:</strong> <span id="modal-task-id"></span></p>
                 <p><strong class="text-gray-600">Craft:</strong> <span id="modal-task-craft"></span></p>
                 <p><strong class="text-gray-600">Base Duration:</strong> <span id="modal-task-base-duration"></span> days</p>
-                <p><strong class="text-gray-600">Delay Added:</strong> <span id="modal-task-delay"></span> days</p> <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
+                <p><strong class="text-gray-600">Delay Added:</strong> <span id="modal-task-delay"></span> days</p>
+                <p><strong class="text-gray-600">Current Buffer:</strong> <span id="modal-task-buffer"></span> days</p>
                 <p><strong class="text-gray-600">Total Duration:</strong> <span id="modal-task-total-duration"></span> days</p>
                 <p><strong class="text-gray-600">Status:</strong> <span id="modal-task-status"></span></p>
-                <p><strong class="text-gray-600">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
+                <p><strong class="text-gray-600">Forced Start Day:</strong> <span id="modal-task-forced-start"></span></p> <p><strong class="text-gray-600">Earliest Start (ES):</strong> <span id="modal-task-es"></span></p>
                 <p><strong class="text-gray-600">Earliest Finish (EF):</strong> <span id="modal-task-ef"></span></p>
                 <p><strong class="text-gray-600">Latest Start (LS):</strong> <span id="modal-task-ls"></span></p>
                 <p><strong class="text-gray-600">Latest Finish (LF):</strong> <span id="modal-task-lf"></span></p>
@@ -252,8 +253,11 @@
             <hr class="my-3">
             <h4 class="text-md font-semibold mb-2 text-gray-700">Task Actions:</h4>
             <div class="flex flex-wrap gap-2">
-                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button> <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies (Simulated)</button>
-                 <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Add Delay</button> <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
+                 <button id="modal-change-start-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Start Date</button>
+                 <button id="modal-adjust-duration-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Adjust Base Duration</button>
+                 <button id="modal-change-deps-btn" class="modal-button font-medium py-1 px-3 rounded text-sm">Change Dependencies (Simulated)</button>
+                 <button id="modal-delay-btn" class="modal-button delay font-medium py-1 px-3 rounded text-sm">Add Delay</button>
+                 <button id="modal-complete-btn" class="modal-button complete font-medium py-1 px-3 rounded text-sm">Mark as Completed</button>
             </div>
              <p class="text-xs text-gray-500 mt-4">*Note: Actions modify the current schedule. Recalculations are based on dependencies and durations/buffers.</p>
              <input type="hidden" id="modal-current-task-id">
@@ -281,6 +285,7 @@
         const modalTaskBuffer = document.getElementById('modal-task-buffer');
         const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
         const modalTaskStatus = document.getElementById('modal-task-status');
+        const modalTaskForcedStart = document.getElementById('modal-task-forced-start'); // Added
         const modalTaskDeps = document.getElementById('modal-task-deps');
         const modalTaskEs = document.getElementById('modal-task-es');
         const modalTaskEf = document.getElementById('modal-task-ef');
@@ -288,6 +293,8 @@
         const modalTaskLf = document.getElementById('modal-task-lf');
         const modalTaskFloat = document.getElementById('modal-task-float');
         const modalCurrentTaskIdInput = document.getElementById('modal-current-task-id');
+        // --- Modal Buttons ---
+        const modalChangeStartBtn = document.getElementById('modal-change-start-btn'); // Added
         const modalAdjustDurationBtn = document.getElementById('modal-adjust-duration-btn');
         const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn');
         const modalDelayBtn = document.getElementById('modal-delay-btn');
@@ -298,8 +305,8 @@
         const optimizeBtn = document.getElementById('optimize-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const criticalPathBtn = document.getElementById('critical-path-btn');
-        const resetValuesBtn = document.getElementById('reset-values-btn'); // New
-        const uploadNewBtn = document.getElementById('upload-new-btn'); // New
+        const resetValuesBtn = document.getElementById('reset-values-btn');
+        const uploadNewBtn = document.getElementById('upload-new-btn');
         const optimizeStatusMsg = document.getElementById('optimize-status');
 
         // --- State Variables ---
@@ -314,24 +321,24 @@
 
         // --- Mock Data (Initial Structure - Enhanced) ---
         const initialTaskDefinitions = [
-            // Added delayDuration: 0 initially
-            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
-            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
-            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2, delayDuration: 0 },
-            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
-            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
-            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
-            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
-            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
-            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2, delayDuration: 0 },
-            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
-            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
-            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3, delayDuration: 0 },
-            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
-            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1, delayDuration: 0 },
-            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2, delayDuration: 0 },
-            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4, delayDuration: 0 },
-            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0, delayDuration: 0 }
+            // Added forcedStartDay: null initially
+            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1, delayDuration: 0, forcedStartDay: null },
+            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3, delayDuration: 0, forcedStartDay: null },
+            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3, delayDuration: 0, forcedStartDay: null },
+            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1, delayDuration: 0, forcedStartDay: null },
+            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, forcedStartDay: null },
+            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, forcedStartDay: null },
+            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3, delayDuration: 0, forcedStartDay: null },
+            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1, delayDuration: 0, forcedStartDay: null },
+            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2, delayDuration: 0, forcedStartDay: null },
+            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4, delayDuration: 0, forcedStartDay: null },
+            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0, delayDuration: 0, forcedStartDay: null }
         ];
 
 
@@ -366,6 +373,7 @@
                      delayDuration: taskDef.delayDuration || 0,
                      currentBuffer: taskDef.maxBuffer, // Reset to max buffer
                      status: 'pending', // Reset status
+                     forcedStartDay: null, // Clear forced start date
                      es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                  })),
                  totalDuration: 0
@@ -436,6 +444,33 @@
         });
 
         // --- Modal Action Button Listeners ---
+         modalChangeStartBtn.addEventListener('click', () => { // Added listener
+            const taskId = parseInt(modalCurrentTaskIdInput.value);
+            const task = projectData.tasks.find(t => t.id === taskId);
+            if (!task || task.status === 'completed') return;
+
+            const currentForced = task.forcedStartDay !== null ? task.forcedStartDay : '';
+            const newStartDayStr = prompt(`Enter new start day for "${task.name}" (leave blank to remove forced start, current ES: ${task.es.toFixed(0)}):`, currentForced);
+
+            if (newStartDayStr === null) return; // User cancelled
+
+            if (newStartDayStr.trim() === '') {
+                 task.forcedStartDay = null; // Remove forced start
+                 console.log(`Forced start removed for task ${taskId}.`);
+            } else {
+                const newStartDay = parseInt(newStartDayStr);
+                if (!isNaN(newStartDay) && newStartDay >= 0) {
+                    task.forcedStartDay = newStartDay;
+                    console.log(`Task ${taskId} forced start day set to ${newStartDay}.`);
+                } else {
+                    alert("Invalid start day. Please enter a non-negative number or leave blank.");
+                    return; // Don't proceed if invalid
+                }
+            }
+            recalculateAndRender();
+            taskModal.style.display = 'none';
+        });
+
         modalAdjustDurationBtn.addEventListener('click', () => {
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
@@ -463,9 +498,8 @@
             const delayStr = prompt(`Enter delay duration (in days) to add to "${task.name}" (current delay: ${task.delayDuration}):`, "1");
             const delay = parseInt(delayStr);
             if (!isNaN(delay) && delay >= 0) {
-                // Add to existing delay
                 task.delayDuration += delay;
-                task.status = 'delayed'; // Mark as delayed
+                task.status = 'delayed';
                 console.log(`Task ${taskId} delay increased by ${delay} days. Total delay: ${task.delayDuration}.`);
                 recalculateAndRender();
                 taskModal.style.display = 'none';
@@ -477,6 +511,8 @@
             const task = projectData.tasks.find(t => t.id === taskId);
             if (!task) return;
             task.status = 'completed';
+            // When completed, fix its start and end dates?
+            // For now, just mark as completed. Recalculation will use its current EF.
             console.log(`Task ${taskId} marked as completed.`);
             recalculateAndRender();
             taskModal.style.display = 'none';
@@ -491,16 +527,15 @@
             analysisSection.classList.remove('hidden');
 
             setTimeout(() => {
-                // Store the raw definitions
                 originalTaskData = JSON.parse(JSON.stringify(initialTaskDefinitions));
-                // Create the initial project state
                 projectData = {
-                    projectName: "Modern Residence Construction", // Reset name too
+                    projectName: "Modern Residence Construction",
                     tasks: originalTaskData.map(taskDef => ({
                         ...taskDef,
                         delayDuration: taskDef.delayDuration || 0,
                         currentBuffer: taskDef.maxBuffer,
                         status: 'pending',
+                        forcedStartDay: null, // Ensure forcedStartDay is initialized
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                     })),
                     totalDuration: 0
@@ -524,62 +559,124 @@
         }
 
 
-        // --- CPM Calculation Functions (Unchanged) ---
+        // --- CPM Calculation Functions ---
+        // Updated to handle forcedStartDay
+
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
             tasks.forEach(task => {
+                // Reset calculated fields, keep definitions
                 task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
                 task.dependencies = task.dependencies || [];
                 task.delayDuration = task.delayDuration || 0;
+                // Keep task.forcedStartDay as it is
             });
 
+            // Forward Pass
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
+                // Skip if already calculated OR completed (EF is fixed)
                 if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
+
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
                     let depEF = depTask.ef;
-                    if (depEF === 0 && depTask.status !== 'completed') { depEF = calculateES_EF(depId); }
+                    // Calculate dependency if needed
+                    if (depEF === 0 && depTask.status !== 'completed') {
+                         depEF = calculateES_EF(depId);
+                    }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
-                task.es = maxEF_Dependency;
-                task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
-                 return task.ef;
-            };
-            tasks.forEach(task => { if (task.status !== 'completed') calculateES_EF(task.id); });
 
+                // Calculate earliest start based on dependencies
+                let calculatedES = maxEF_Dependency;
+
+                // Apply forced start date, but ensure it doesn't violate dependencies
+                if (task.forcedStartDay !== null && task.forcedStartDay !== undefined) {
+                    task.es = Math.max(calculatedES, task.forcedStartDay);
+                } else {
+                    task.es = calculatedES;
+                }
+
+                // Calculate earliest finish
+                task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
+                return task.ef;
+            };
+
+            // Ensure all tasks are calculated (handle potential out-of-order dependencies)
+            let changed = true;
+            let iterations = 0;
+            const maxIterations = tasks.length * 2;
+            while(changed && iterations < maxIterations) {
+                changed = false;
+                tasks.forEach(task => {
+                    if (task.status !== 'completed') {
+                        const oldEF = task.ef;
+                        calculateES_EF(task.id);
+                        if(task.ef !== oldEF) changed = true;
+                    }
+                });
+                iterations++;
+            }
+             if (iterations >= maxIterations) console.warn("Max iterations reached during ES/EF calculation. Possible cycle?");
+
+
+            // Backward Pass (largely unchanged, operates on calculated EF/ES)
             const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
 
             tasks.forEach(task => {
                  if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
+                 else { // For completed tasks, set LS/LF based on actual EF? Or keep as calculated?
+                     // Let's keep LS/LF based on calculated EF for now, float will be 0 or negative.
+                 }
+                 // Set LF for final tasks
                  if (tasks.every(other => !other.dependencies.includes(task.id))) {
                     task.lf = projectDuration;
                     task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
                  }
             });
+
             const calculateLS_LF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ls !== Infinity || task.status === 'completed') return;
+
                 let minLS_Successor = projectDuration;
                 tasks.forEach(successor => {
                     if (successor.dependencies.includes(taskId)) {
-                        if (successor.ls === Infinity && successor.status !== 'completed') { calculateLS_LF(successor.id); }
+                        if (successor.ls === Infinity && successor.status !== 'completed') {
+                            calculateLS_LF(successor.id);
+                        }
                         minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls);
                     }
                 });
                 task.lf = minLS_Successor;
                 task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
             };
-            for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
-            tasks.forEach(task => { if (task.status !== 'completed') task.float = task.ls - task.es; else task.float = 0; });
+
+             // Iterate backwards
+            for (let i = tasks.length - 1; i >= 0; i--) {
+                 if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id);
+            }
+
+            // Calculate Float
+            tasks.forEach(task => {
+                 if (task.status !== 'completed') {
+                     // Ensure LS and ES are numbers before calculating float
+                     task.float = (typeof task.ls === 'number' && typeof task.es === 'number') ? task.ls - task.es : Infinity;
+                 } else {
+                     task.float = 0; // Completed tasks have no float
+                 }
+            });
         }
+
 
         function findCriticalPathTasks(tasks) {
             const criticalTasks = new Set();
             tasks.forEach(task => {
-                if (Math.abs(task.float) < 0.001 && task.status !== 'completed') {
+                // Check float is near zero and task not completed
+                if (task.float !== Infinity && Math.abs(task.float) < 0.001 && task.status !== 'completed') {
                     criticalTasks.add(task.id);
                 }
             });
@@ -652,14 +749,17 @@
                     bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
                     taskContainer.appendChild(bufferDiv);
                 }
-                 if (totalVisualDuration <= 0) {
+                 if (totalVisualDuration <= 0 && task.duration <= 0) { // Handle zero duration tasks
                      taskContainer.style.width = `${currentDayWidth * 0.5}px`;
                      const baseDiv = document.createElement('div');
                      baseDiv.classList.add('gantt-task-bar-base');
                      baseDiv.style.width = '100%';
                      baseDiv.textContent = `${task.name} (${task.craft})`;
                      taskContainer.appendChild(baseDiv);
+                 } else if (totalVisualDuration <= 0) { // Ensure non-zero width if duration > 0 but buffer/delay negative? (Shouldn't happen with current logic)
+                      taskContainer.style.width = `${currentDayWidth * 0.1}px`; // Minimal width
                  }
+
 
                 taskContainer.classList.remove('critical-path', 'status-completed', 'status-delayed');
                 if (task.status === 'completed') { taskContainer.classList.add('status-completed'); taskContainer.title = `${task.name} (Completed)`; }
@@ -704,6 +804,8 @@
             modalTaskBuffer.textContent = task.currentBuffer;
             modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer;
             modalTaskStatus.textContent = task.status;
+            // Display forced start date or 'N/A'
+            modalTaskForcedStart.textContent = (task.forcedStartDay !== null && task.forcedStartDay !== undefined) ? task.forcedStartDay : 'N/A';
             modalTaskEs.textContent = task.es.toFixed(1);
             modalTaskEf.textContent = task.ef.toFixed(1);
             modalTaskLs.textContent = task.ls.toFixed(1);
@@ -716,6 +818,7 @@
             }).join(', ') || 'None';
             modalTaskDeps.textContent = depNames;
             const isCompleted = task.status === 'completed';
+            modalChangeStartBtn.disabled = isCompleted; // Disable if completed
             modalAdjustDurationBtn.disabled = isCompleted;
             modalChangeDepsBtn.disabled = isCompleted;
             modalDelayBtn.disabled = isCompleted;
@@ -725,10 +828,12 @@
 
         // --- Export Function ---
         function exportScheduleToCSV(tasks, filename = 'arcflow_schedule') {
-             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Delay Added', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
+             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Delay Added', 'Current Buffer', 'Forced Start', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
              const rows = tasks.map(task => [
                  task.id, `"${task.name.replace(/"/g, '""')}"`, `"${task.craft.replace(/"/g, '""')}"`,
-                 task.duration, task.delayDuration || 0, task.currentBuffer, task.status,
+                 task.duration, task.delayDuration || 0, task.currentBuffer,
+                 (task.forcedStartDay !== null && task.forcedStartDay !== undefined) ? task.forcedStartDay : '', // Add forced start to CSV
+                 task.status,
                  task.es.toFixed(1), task.ef.toFixed(1), task.ls.toFixed(1), task.lf.toFixed(1), task.float.toFixed(1),
                  `"${(task.dependencies || []).join(',')}"`
              ]);
