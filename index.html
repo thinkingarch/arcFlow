@@ -249,7 +249,7 @@
                 <p><strong class="text-gray-600">Latest Start (LS):</strong> <span id="modal-task-ls"></span></p>
                 <p><strong class="text-gray-600">Latest Finish (LF):</strong> <span id="modal-task-lf"></span></p>
                 <p><strong class="text-gray-600">Float/Slack:</strong> <span id="modal-task-float"></span> days</p>
-                <p class="col-span-2"><strong class="text-gray-600">Dependencies:</strong> <span id="modal-task-deps"></span></p>
+                <p class="col-span-2"><strong class="text-gray-600">Actual Finish Day:</strong> <span id="modal-task-actual-finish"></span></p> <p class="col-span-2"><strong class="text-gray-600">Dependencies:</strong> <span id="modal-task-deps"></span></p>
             </div>
             <hr class="my-3">
             <h4 class="text-md font-semibold mb-2 text-gray-700">Task Actions:</h4>
@@ -270,7 +270,6 @@
             <span id="close-dep-console-btn" class="close-button">&times;</span>
             <h3 class="text-lg font-semibold mb-3">Dependency Console (Mock-up)</h3>
             <p class="text-sm text-gray-600 mb-4">Editing dependencies for: <strong id="dep-console-task-name">Task Name</strong></p>
-
             <div class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto border rounded p-2 bg-gray-50">
                 <div>
                     <h4 class="font-semibold text-sm mb-2 text-gray-700">Predecessors (Finish-to-Start)</h4>
@@ -290,11 +289,31 @@
                          </ul>
                 </div>
             </div>
-
             <p class="text-xs text-gray-500 mt-4">*Note: This is a visual mock-up. Dependency editing functionality is not implemented.</p>
             <div class="mt-4 text-right">
                  <button id="dep-console-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded text-sm">Cancel</button>
                  <button id="dep-console-save-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-1 px-3 rounded text-sm ml-2" disabled>Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="completion-modal" class="modal">
+        <div class="modal-content shadow-xl w-full max-w-md"> <span id="close-completion-modal-btn" class="close-button">&times;</span>
+            <h3 class="text-lg font-semibold mb-3">Confirm Task Completion</h3>
+            <p class="text-sm mb-2">Task: <strong id="completion-task-name">Task Name</strong></p>
+            <p class="text-sm mb-4">Calculated Finish Day (EF): <strong id="completion-calculated-ef">0</strong></p>
+
+            <div class="mb-4">
+                <label for="completion-actual-day-input" class="block text-sm font-medium text-gray-700 mb-1">Actual Completion Day:</label>
+                <input type="number" id="completion-actual-day-input" name="completion-actual-day" min="0" step="1"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                 <p class="text-xs text-gray-500 mt-1">Enter the day number when the task was actually completed.</p>
+            </div>
+
+            <input type="hidden" id="completion-task-id">
+            <div class="mt-5 text-right space-x-2">
+                 <button id="cancel-completion-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md text-sm">Cancel</button>
+                 <button id="confirm-completion-btn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md text-sm">Confirm Completion</button>
             </div>
         </div>
     </div>
@@ -323,6 +342,7 @@
         const modalTaskManualOffset = document.getElementById('modal-task-manual-offset');
         const modalTaskTotalDuration = document.getElementById('modal-task-total-duration');
         const modalTaskStatus = document.getElementById('modal-task-status');
+        const modalTaskActualFinish = document.getElementById('modal-task-actual-finish'); // Added
         const modalTaskDeps = document.getElementById('modal-task-deps');
         const modalTaskEs = document.getElementById('modal-task-es');
         const modalTaskEf = document.getElementById('modal-task-ef');
@@ -333,7 +353,7 @@
         // Task Modal Buttons
         const modalChangeStartBtn = document.getElementById('modal-change-start-btn');
         const modalAdjustDurationBtn = document.getElementById('modal-adjust-duration-btn');
-        const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn'); // Renamed Text in HTML
+        const modalChangeDepsBtn = document.getElementById('modal-change-deps-btn');
         const modalDelayBtn = document.getElementById('modal-delay-btn');
         const modalCompleteBtn = document.getElementById('modal-complete-btn');
         // Dependency Console Modal elements
@@ -342,6 +362,15 @@
         const depConsoleTaskName = document.getElementById('dep-console-task-name');
         const depConsoleCancelBtn = document.getElementById('dep-console-cancel-btn');
         const depConsoleSaveBtn = document.getElementById('dep-console-save-btn');
+        // Completion Modal elements
+        const completionModal = document.getElementById('completion-modal'); // Added
+        const closeCompletionModalBtn = document.getElementById('close-completion-modal-btn'); // Added
+        const completionTaskName = document.getElementById('completion-task-name'); // Added
+        const completionCalculatedEf = document.getElementById('completion-calculated-ef'); // Added
+        const completionActualDayInput = document.getElementById('completion-actual-day-input'); // Added
+        const completionTaskIdInput = document.getElementById('completion-task-id'); // Added
+        const cancelCompletionBtn = document.getElementById('cancel-completion-btn'); // Added
+        const confirmCompletionBtn = document.getElementById('confirm-completion-btn'); // Added
         // Control Buttons
         const zoomInBtn = document.getElementById('zoom-in-btn');
         const zoomOutBtn = document.getElementById('zoom-out-btn');
@@ -364,24 +393,24 @@
 
         // --- Mock Data (Initial Structure - Enhanced) ---
         const initialTaskDefinitions = [
-            // Added manualOffset: 0 initially
-            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0 },
-            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0 },
-            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0 },
-            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0 },
-            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0 },
-            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0 },
-            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0 },
-            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0 },
-            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0 },
-            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4, delayDuration: 0, manualOffset: 0 },
-            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0, delayDuration: 0, manualOffset: 0 }
+            // Added actualFinishDay: null initially
+            { id: 1, name: "Terrain Preparation", craft: "Excavation", duration: 3, dependencies: [], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 2, name: "Foundations", craft: "Concrete", duration: 7, dependencies: [1], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 3, name: "Framing (Structure)", craft: "Carpentry", duration: 10, dependencies: [2], minBuffer: 1, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 4, name: "Roof Installation", craft: "Roofing", duration: 5, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 5, name: "Exterior Walls/Facade", craft: "Masonry/Siding", duration: 8, dependencies: [3], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 6, name: "Windows & Doors Installation", craft: "Glazing/Carpentry", duration: 4, dependencies: [5], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 7, name: "Plumbing Rough-in", craft: "Plumbing", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 8, name: "Electrical Wiring", craft: "Electrical", duration: 6, dependencies: [3], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 9, name: "Insulation & Drywall", craft: "Insulation/Drywall", duration: 7, dependencies: [6, 7, 8], minBuffer: 1, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 10, name: "Ceiling Installation", craft: "Drywall/Finishing", duration: 4, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 11, name: "Interior Walls (Partitioning)", craft: "Framing/Drywall", duration: 5, dependencies: [9], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 12, name: "Flooring Installation", craft: "Flooring", duration: 6, dependencies: [10, 11], minBuffer: 1, maxBuffer: 3, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 13, name: "Interior Finishes (Paint, Trim)", craft: "Painting/Finishing", duration: 8, dependencies: [12], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 14, name: "Install Devices (HVAC, Appliances)", craft: "HVAC/Electrical/Plumbing", duration: 5, dependencies: [13], minBuffer: 0, maxBuffer: 1, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 15, name: "Driveway & Walkways", craft: "Paving/Concrete", duration: 7, dependencies: [14], minBuffer: 0, maxBuffer: 2, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 16, name: "Garden & Landscaping", craft: "Landscaping", duration: 10, dependencies: [15], minBuffer: 1, maxBuffer: 4, delayDuration: 0, manualOffset: 0, actualFinishDay: null },
+            { id: 17, name: "Final Cleaning & Handover", craft: "Cleaning", duration: 2, dependencies: [16], minBuffer: 0, maxBuffer: 0, delayDuration: 0, manualOffset: 0, actualFinishDay: null }
         ];
 
 
@@ -410,6 +439,11 @@
         depConsoleCancelBtn.addEventListener('click', () => dependencyConsoleModal.style.display = 'none');
         window.addEventListener('click', (event) => { if (event.target == dependencyConsoleModal) dependencyConsoleModal.style.display = 'none'; });
 
+        // Completion Modal Close
+        closeCompletionModalBtn.addEventListener('click', () => completionModal.style.display = 'none');
+        cancelCompletionBtn.addEventListener('click', () => completionModal.style.display = 'none');
+        window.addEventListener('click', (event) => { if (event.target == completionModal) completionModal.style.display = 'none'; });
+
 
          // Reset Buttons
          resetValuesBtn.addEventListener('click', () => {
@@ -423,6 +457,7 @@
                      manualOffset: 0,
                      currentBuffer: taskDef.maxBuffer,
                      status: 'pending',
+                     actualFinishDay: null, // Reset actual finish
                      es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
                  })),
                  totalDuration: 0
@@ -499,7 +534,7 @@
             let maxEF_Dependency = 0;
              task.dependencies.forEach(depId => {
                  const depTask = projectData.tasks.find(t => t.id === depId);
-                 if (depTask) maxEF_Dependency = Math.max(maxEF_Dependency, depTask.ef || 0);
+                 if (depTask) maxEF_Dependency = Math.max(maxEF_Dependency, depTask.actualFinishDay ?? depTask.ef ?? 0); // Use actual finish if available
              });
             const currentOffset = task.manualOffset || 0;
             const currentEffectiveStart = maxEF_Dependency + currentOffset;
@@ -532,11 +567,9 @@
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
             if (!task) return;
-            // Show the dependency console mock-up
             depConsoleTaskName.textContent = task.name;
-            // In a real app, populate the console with actual dependency info
             dependencyConsoleModal.style.display = 'block';
-            taskModal.style.display = 'none'; // Hide the task details modal
+            taskModal.style.display = 'none';
             console.log(`Opened Dependency Console mock-up for task ${taskId}.`);
         });
 
@@ -555,14 +588,47 @@
             } else if (delayStr !== null) { alert("Invalid delay."); }
         });
 
-         modalCompleteBtn.addEventListener('click', () => {
+         modalCompleteBtn.addEventListener('click', () => { // Opens the new completion modal
             const taskId = parseInt(modalCurrentTaskIdInput.value);
             const task = projectData.tasks.find(t => t.id === taskId);
+            if (!task || task.status === 'completed') return;
+
+            // Populate and show the completion modal
+            completionTaskName.textContent = task.name;
+            completionCalculatedEf.textContent = task.ef.toFixed(1);
+            completionActualDayInput.value = Math.ceil(task.ef); // Default to calculated EF (rounded up)
+            completionTaskIdInput.value = taskId;
+
+            completionModal.style.display = 'block';
+            taskModal.style.display = 'none'; // Hide the task details modal
+        });
+
+        // Completion Modal Confirm Button
+        confirmCompletionBtn.addEventListener('click', () => {
+            const taskId = parseInt(completionTaskIdInput.value);
+            const task = projectData.tasks.find(t => t.id === taskId);
             if (!task) return;
+
+            const actualFinishDay = parseInt(completionActualDayInput.value);
+
+            if (isNaN(actualFinishDay) || actualFinishDay < 0) {
+                 alert("Please enter a valid non-negative day number for the actual completion date.");
+                 return;
+            }
+             // Optional: Validate if actualFinishDay >= calculated ES?
+             // if (actualFinishDay < task.es) {
+             //    alert(`Actual finish day (${actualFinishDay}) cannot be earlier than the earliest start day (${task.es.toFixed(0)}).`);
+             //    return;
+             // }
+
             task.status = 'completed';
-            console.log(`Task ${taskId} marked as completed.`);
-            recalculateAndRender();
-            taskModal.style.display = 'none';
+            task.actualFinishDay = actualFinishDay;
+            // Optionally adjust duration/delay/buffer based on actualFinishDay?
+            // For simplicity, we just record the day and fix EF in calculations.
+            console.log(`Task ${taskId} confirmed completed on day ${actualFinishDay}.`);
+
+            completionModal.style.display = 'none';
+            recalculateAndRender(); // Recalculate schedule with the fixed completion date
         });
 
 
@@ -581,6 +647,7 @@
                         ...taskDef,
                         delayDuration: taskDef.delayDuration || 0,
                         manualOffset: taskDef.manualOffset || 0,
+                        actualFinishDay: taskDef.actualFinishDay || null, // Initialize actualFinishDay
                         currentBuffer: taskDef.maxBuffer,
                         status: 'pending',
                         es: 0, ef: 0, ls: Infinity, lf: Infinity, float: 0
@@ -606,61 +673,131 @@
         }
 
 
-        // --- CPM Calculation Functions (Unchanged) ---
+        // --- CPM Calculation Functions ---
+        // Updated to use actualFinishDay
+
         function calculateSchedule(tasks) {
             const taskMap = new Map(tasks.map(task => [task.id, task]));
             tasks.forEach(task => {
-                task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
+                // Reset calculated fields unless completed
+                if (task.status !== 'completed') {
+                    task.es = 0; task.ef = 0; task.ls = Infinity; task.lf = Infinity; task.float = 0;
+                }
                 task.dependencies = task.dependencies || [];
                 task.delayDuration = task.delayDuration || 0;
                 task.manualOffset = task.manualOffset || 0;
+                // Keep actualFinishDay if already set
             });
 
+            // Forward Pass
             const calculateES_EF = (taskId) => {
                 const task = taskMap.get(taskId);
-                if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
+
+                // If completed, use actual finish day for EF, calculate ES based on it? No, just fix EF.
+                if (task.status === 'completed' && task.actualFinishDay !== null) {
+                    task.ef = task.actualFinishDay;
+                    // Optionally recalculate ES based on fixed EF?
+                    // task.es = task.ef - (task.duration + task.delayDuration + task.currentBuffer);
+                    return task.ef;
+                }
+
+                // Avoid recalculating if EF already exists (and not pending/delayed)
+                 if (task.ef > 0 && task.status !== 'pending' && task.status !== 'delayed') return task.ef;
+
+
                 let maxEF_Dependency = 0;
                 task.dependencies.forEach(depId => {
                     const depTask = taskMap.get(depId);
                     if (!depTask) { console.warn(`Dep ID ${depId} not found for task ${task.id}`); return; }
-                    let depEF = depTask.ef;
-                    if (depEF === 0 && depTask.status !== 'completed') { depEF = calculateES_EF(depId); }
+
+                    let depEF;
+                    // Use actual finish day of predecessor if available
+                    if (depTask.status === 'completed' && depTask.actualFinishDay !== null) {
+                        depEF = depTask.actualFinishDay;
+                    } else {
+                        // Calculate dependency EF if needed
+                        depEF = depTask.ef;
+                         if (depEF === 0) { // Check if 0 means not calculated yet
+                            depEF = calculateES_EF(depId);
+                         }
+                    }
                     maxEF_Dependency = Math.max(maxEF_Dependency, depEF || 0);
                 });
+
                 task.es = maxEF_Dependency + task.manualOffset;
                 task.ef = task.es + task.duration + task.delayDuration + task.currentBuffer;
                  return task.ef;
             };
+
+            // Ensure all tasks are calculated
             let changed = true; let iterations = 0; const maxIterations = tasks.length * 2;
             while(changed && iterations < maxIterations) {
                 changed = false;
                 tasks.forEach(task => {
-                    if (task.status !== 'completed') { const oldEF = task.ef; calculateES_EF(task.id); if(task.ef !== oldEF) changed = true; }
+                    // Only recalculate non-completed tasks' EF
+                     if (task.status !== 'completed') {
+                        const oldEF = task.ef;
+                        calculateES_EF(task.id);
+                        if(task.ef !== oldEF) changed = true;
+                     } else if (task.actualFinishDay !== null) {
+                         // Ensure EF is set for completed tasks if not already
+                         task.ef = task.actualFinishDay;
+                     }
                 });
                 iterations++;
             }
              if (iterations >= maxIterations) console.warn("Max iterations reached during ES/EF calculation.");
 
+
+            // Backward Pass
             const projectDuration = Math.max(0, ...tasks.map(t => t.ef));
+
             tasks.forEach(task => {
                  if (task.status !== 'completed') { task.ls = Infinity; task.lf = Infinity; }
+                 else { // For completed tasks, set LS/LF based on actual finish day?
+                     task.lf = task.actualFinishDay;
+                     task.ls = task.actualFinishDay - (task.duration + task.delayDuration + task.currentBuffer); // Less meaningful now
+                 }
+
                  if (tasks.every(other => !other.dependencies.includes(task.id))) {
-                    task.lf = projectDuration; task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer); }
+                    task.lf = projectDuration;
+                    if (task.status !== 'completed') {
+                        task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
+                    }
+                 }
             });
+
             const calculateLS_LF = (taskId) => {
                 const task = taskMap.get(taskId);
                 if (task.ls !== Infinity || task.status === 'completed') return;
+
                 let minLS_Successor = projectDuration;
                 tasks.forEach(successor => {
                     if (successor.dependencies.includes(taskId)) {
-                        if (successor.ls === Infinity && successor.status !== 'completed') { calculateLS_LF(successor.id); }
-                        minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls); }
+                        if (successor.ls === Infinity && successor.status !== 'completed') {
+                            calculateLS_LF(successor.id);
+                        }
+                        minLS_Successor = Math.min(minLS_Successor, successor.ls === Infinity ? projectDuration : successor.ls);
+                    }
                 });
-                task.lf = minLS_Successor; task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
+                task.lf = minLS_Successor;
+                task.ls = task.lf - (task.duration + task.delayDuration + task.currentBuffer);
             };
-            for (let i = tasks.length - 1; i >= 0; i--) { if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id); }
-            tasks.forEach(task => { if (task.status !== 'completed') task.float = (typeof task.ls === 'number' && typeof task.es === 'number') ? task.ls - task.es : Infinity; else task.float = 0; });
+
+            for (let i = tasks.length - 1; i >= 0; i--) {
+                 if (tasks[i].status !== 'completed') calculateLS_LF(tasks[i].id);
+            }
+
+            // Calculate Float
+            tasks.forEach(task => {
+                 if (task.status !== 'completed') {
+                     task.float = (typeof task.ls === 'number' && typeof task.es === 'number') ? task.ls - task.es : Infinity;
+                 } else {
+                     task.float = 0; // Completed tasks have zero float by definition
+                 }
+            });
         }
+
 
         function findCriticalPathTasks(tasks) {
             const criticalTasks = new Set();
@@ -703,54 +840,74 @@
                 const taskContainer = document.createElement('div');
                 taskContainer.classList.add('gantt-task-bar-container');
                 const taskStartDay = task.es || 0;
+                // Use actual finish day for completed tasks to determine visual length?
+                // Or just use calculated EF based on actual finish? Let's stick to calculated EF for visual consistency.
                 const effectiveDuration = task.duration + (task.delayDuration || 0);
                 const totalVisualDuration = effectiveDuration + task.currentBuffer;
+                let visualEndDay = task.ef;
+                 // If completed, maybe cap visual length at actual finish day?
+                 // This could make bars shorter than calculated if finished early. Let's try this.
+                 if (task.status === 'completed' && task.actualFinishDay !== null) {
+                     visualEndDay = task.actualFinishDay;
+                     // Adjust container width based on actual finish
+                      taskContainer.style.width = `${(visualEndDay - taskStartDay) * currentDayWidth}px`;
+                 } else {
+                      taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`;
+                 }
+
+
                 taskContainer.style.left = `${taskStartDay * currentDayWidth}px`;
-                taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`;
+                // taskContainer.style.width = `${totalVisualDuration * currentDayWidth}px`; // Original width calc
                 taskContainer.style.top = `${index * (taskHeight + taskGap)}px`;
                 taskContainer.style.height = `${taskHeight}px`;
                 taskContainer.dataset.taskId = task.id;
                 taskContainer.innerHTML = '';
                 let currentOffsetPercent = 0;
 
+                // Adjust segment widths based on potentially shorter visual duration if completed early
+                let displayDuration = (task.status === 'completed' && task.actualFinishDay !== null) ? (task.actualFinishDay - taskStartDay) : totalVisualDuration;
+                 if (displayDuration <= 0) displayDuration = 0.5; // Prevent division by zero, show minimal bar
+
                 if (task.duration > 0) {
                     const baseDiv = document.createElement('div');
                     baseDiv.classList.add('gantt-task-bar-base');
-                    const baseWidthPercent = (task.duration / totalVisualDuration) * 100;
-                    baseDiv.style.width = `${baseWidthPercent}%`;
+                    // Calculate width relative to the potentially adjusted displayDuration
+                    const baseWidthPercent = (task.duration / displayDuration) * 100;
+                    baseDiv.style.width = `${Math.min(100 - currentOffsetPercent, baseWidthPercent)}%`; // Cap width
                     baseDiv.textContent = `${task.name} (${task.craft})`;
                     if (task.delayDuration > 0 || task.currentBuffer > 0) { baseDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.2)'; }
                     taskContainer.appendChild(baseDiv);
                     currentOffsetPercent += baseWidthPercent;
                 }
-                if (task.delayDuration > 0) {
+                if (task.delayDuration > 0 && currentOffsetPercent < 100) { // Only show if not completed early before delay started
                     const delayDiv = document.createElement('div');
                     delayDiv.classList.add('gantt-task-bar-delay');
-                    const delayWidthPercent = (task.delayDuration / totalVisualDuration) * 100;
-                    delayDiv.style.width = `${delayWidthPercent}%`;
+                    const delayWidthPercent = (task.delayDuration / displayDuration) * 100;
+                    delayDiv.style.width = `${Math.min(100 - currentOffsetPercent, delayWidthPercent)}%`;
                     if (task.currentBuffer > 0) { delayDiv.style.borderRight = '1px solid rgba(255, 255, 255, 0.3)'; }
                     taskContainer.appendChild(delayDiv);
                     currentOffsetPercent += delayWidthPercent;
                 }
-                if (task.currentBuffer > 0) {
+                if (task.currentBuffer > 0 && currentOffsetPercent < 100) { // Only show if not completed early before buffer started
                     const bufferDiv = document.createElement('div');
                     bufferDiv.classList.add('gantt-task-bar-buffer');
                     bufferDiv.style.width = `${Math.max(0, 100 - currentOffsetPercent)}%`;
                     taskContainer.appendChild(bufferDiv);
                 }
-                 if (totalVisualDuration <= 0 && task.duration <= 0 && task.delayDuration <= 0) {
+                 if (displayDuration <= 0.5) { // Handle zero duration tasks
                      taskContainer.style.width = `${currentDayWidth * 0.5}px`;
-                     const baseDiv = document.createElement('div');
-                     baseDiv.classList.add('gantt-task-bar-base');
-                     baseDiv.style.width = '100%';
-                     baseDiv.textContent = `${task.name} (${task.craft})`;
-                     taskContainer.appendChild(baseDiv);
-                 } else if (totalVisualDuration <= 0) {
-                      taskContainer.style.width = `${currentDayWidth * 0.1}px`;
+                     if (taskContainer.children.length === 0) { // Ensure at least one segment if container is visible
+                         const baseDiv = document.createElement('div');
+                         baseDiv.classList.add('gantt-task-bar-base');
+                         baseDiv.style.width = '100%';
+                         baseDiv.textContent = `${task.name} (${task.craft})`;
+                         taskContainer.appendChild(baseDiv);
+                     }
                  }
 
+
                 taskContainer.classList.remove('critical-path', 'status-completed', 'status-delayed');
-                if (task.status === 'completed') { taskContainer.classList.add('status-completed'); taskContainer.title = `${task.name} (Completed)`; }
+                if (task.status === 'completed') { taskContainer.classList.add('status-completed'); taskContainer.title = `${task.name} (Completed Day ${task.actualFinishDay})`; }
                 else if (task.status === 'delayed') { taskContainer.title = `${task.name} (Delayed)`; }
                  if (task.status !== 'completed' && isCriticalPathHighlighted && criticalPathTasks.has(task.id)) {
                     taskContainer.classList.add('critical-path');
@@ -764,7 +921,9 @@
                     const preTask = data.tasks.find(t => t.id === depId);
                     const preTaskIndex = data.tasks.findIndex(t => t.id === depId);
                     if (preTask) {
-                        const startX = preTask.ef * currentDayWidth;
+                        // Use actual finish day if available for dependency line start
+                        const preTaskFinishDay = preTask.actualFinishDay ?? preTask.ef ?? 0;
+                        const startX = preTaskFinishDay * currentDayWidth;
                         const startY = preTaskIndex * (taskHeight + taskGap) + taskHeight / 2;
                         const endX = task.es * currentDayWidth;
                         const endY = index * (taskHeight + taskGap) + taskHeight / 2;
@@ -793,6 +952,7 @@
             modalTaskManualOffset.textContent = task.manualOffset || 0;
             modalTaskTotalDuration.textContent = task.duration + (task.delayDuration || 0) + task.currentBuffer;
             modalTaskStatus.textContent = task.status;
+            modalTaskActualFinish.textContent = (task.actualFinishDay !== null) ? task.actualFinishDay : 'N/A'; // Show actual finish
             modalTaskEs.textContent = task.es.toFixed(1);
             modalTaskEf.textContent = task.ef.toFixed(1);
             modalTaskLs.textContent = task.ls.toFixed(1);
@@ -815,11 +975,11 @@
 
         // --- Export Function ---
         function exportScheduleToCSV(tasks, filename = 'arcflow_schedule') {
-             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Delay Added', 'Manual Start Offset', 'Current Buffer', 'Status', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
+             const headers = ['ID', 'Task Name', 'Craft', 'Base Duration', 'Delay Added', 'Manual Start Offset', 'Current Buffer', 'Status', 'Actual Finish', 'Earliest Start', 'Earliest Finish', 'Latest Start', 'Latest Finish', 'Float', 'Dependencies (IDs)'];
              const rows = tasks.map(task => [
                  task.id, `"${task.name.replace(/"/g, '""')}"`, `"${task.craft.replace(/"/g, '""')}"`,
                  task.duration, task.delayDuration || 0, task.manualOffset || 0, task.currentBuffer,
-                 task.status,
+                 task.status, (task.actualFinishDay !== null) ? task.actualFinishDay : '',
                  task.es.toFixed(1), task.ef.toFixed(1), task.ls.toFixed(1), task.lf.toFixed(1), task.float.toFixed(1),
                  `"${(task.dependencies || []).join(',')}"`
              ]);
